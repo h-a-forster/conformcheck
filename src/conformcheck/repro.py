@@ -314,6 +314,7 @@ def sets(x_cal, y_cal, x_test, alpha, seed):
     pred = ProbaPredictor(MODEL, is_trained=True)
     cp = {{"lac": lambda: pc.LAC(pred, train=False),
           "aps": lambda: pc.APS(pred, train=False, rand=RAND),
+          "raps": lambda: pc.RAPS(pred, train=False, lambd=0.1, k_reg=1, rand=RAND),
           "classwise_lac": lambda: pc.ClasswiseLAC(pred, train=False)}}[KIND]()
     cp.fit(X_calib=x_cal, y_calib=y_cal)
     out = np.zeros((len(x_test), 4), dtype=bool)
@@ -324,13 +325,14 @@ def sets(x_cal, y_cal, x_test, alpha, seed):
     "torchcp/classifier": """
 import torch
 from torchcp.classification.predictor import ClassConditionalPredictor, SplitPredictor
-from torchcp.classification.score import APS, LAC
+from torchcp.classification.score import APS, LAC, RAPS
 LIB = "torchcp"
 KIND, RAND, CLASS_COND = {kind!r}, {rand!r}, {class_cond!r}
 def sets(x_cal, y_cal, x_test, alpha, seed):
     torch.manual_seed(seed)
     lg = lambda x: torch.log(torch.tensor(MODEL.predict_proba(x), dtype=torch.float32))
-    score = LAC() if KIND == "lac" else APS(randomized=RAND)
+    score = {{"lac": LAC, "aps": lambda: APS(randomized=RAND),
+              "raps": lambda: RAPS(randomized=RAND, penalty=0.1, kreg=1)}}[KIND]()
     p = (ClassConditionalPredictor if CLASS_COND else SplitPredictor)(score_function=score)
     p.calculate_threshold(lg(x_cal), torch.tensor(y_cal), float(alpha))
     return p.predict_with_logits(lg(x_test)).numpy().astype(bool)
@@ -495,7 +497,7 @@ def _snippet(cell: Cell) -> str | None:
         kind = "classwise_lac" if method == "class_conditional" else method
         return SNIPPETS["puncc/classifier"].format(kind=kind, rand=variant == "rand=True")
     if lib == "torchcp":
-        kind = "lac" if method in ("lac", "class_conditional") else "aps"
+        kind = "lac" if method in ("lac", "class_conditional") else method
         return SNIPPETS["torchcp/classifier"].format(
             kind=kind, rand=variant == "randomized=True", class_cond=method == "class_conditional"
         )

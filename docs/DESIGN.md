@@ -2,7 +2,9 @@
 
 Status: design for v0.1, written before implementation (milestone M0). Sections marked
 **hypothesis** are predictions from reading library source code. They are not findings
-until the study confirms them.
+until the study confirms them. Section 14 is the round-2 addendum (RAPS, bracketing, an
+informative synthetic classifier), written before its study run; sections 1 to 13 are
+kept as written, with the round-2 changes marked inline.
 
 ## 1. Goal
 
@@ -42,7 +44,7 @@ The implementation budget is about 5 agent-hours. The default study must run in 
 | R3 cross methods | jackknife+ (LOO), CV+ (K = 5, 10) | MAPIE, puncc |
 | C1 LAC | `1 - p_y` score; crepes hinge (= LAC), smoothed and not | MAPIE, crepes, puncc, TorchCP |
 | C2 APS | non-randomized and randomized; MAPIE `include_last_label` False/True/"randomized" | MAPIE, puncc, TorchCP |
-| C3 RAPS | fixed (lambda, k_reg); MAPIE tunes lambda internally | MAPIE, puncc, TorchCP (milestone M8, may be cut) |
+| C3 RAPS | fixed (lambda, k_reg); MAPIE tunes lambda internally | MAPIE, puncc, TorchCP (cut from v0.1; added in round 2, section 14) |
 | C4 class-conditional | Mondrian by label with LAC score | crepes, puncc, TorchCP |
 
 That gives about 29 library-method-variant rows without RAPS and about 33 with it
@@ -138,7 +140,7 @@ null event for smoothed p-values, but not for unsmoothed ones (section 12).
 | jackknife+ / CV+, constant model | every LOO/out-of-fold model is identical, so the interval is `[-R_(k), R_(k)]`: split conformal on all `n` points | exact |
 | jackknife+, other models | `>= 1 - 2alpha` (Barber et al. 2021, Thm 1) | one-sided |
 | CV+, other models | `>= 1 - 2alpha - min{2(1-1/K)/(n/K+1), (1-K/n)/(K+1)}` (Thm 4) | one-sided |
-| MAPIE RAPS (lambda tuned on an internal split of size `ceil(0.2 n)`) | BetaBinomial with `n_eff = n - ceil(0.2 n)`; the tuning split is independent of the calibration part | exact, with `n_eff` reported by the adapter |
+| MAPIE RAPS (lambda tuned on an internal split of size `ceil(0.2 n)`; round 2: `ceil(0.1 n)` in practice, section 14) | BetaBinomial with `n_eff = n - ceil(0.2 n)` (round 2: `n - ceil(0.1 n)`); the tuning split is independent of the calibration part | exact, with `n_eff` reported by the adapter |
 | any method with `k > n` | `S = m` surely, or a documented refusal | deterministic |
 
 The constant-model reduction for jackknife+ follows from the definitions (Barber et al.
@@ -565,3 +567,61 @@ Written before any study run. Each one gets a verdict in REPORT.md.
 - Libraries: MAPIE https://github.com/scikit-learn-contrib/MAPIE; crepes
   https://github.com/henrikbostrom/crepes; puncc https://github.com/deel-ai/puncc;
   TorchCP https://github.com/ml-stat-Sustech/TorchCP (paper arXiv:2402.12683).
+
+## 14. Round-2 addendum (written 2026-10-24, before the round-2 run)
+
+### 14.1 RAPS rows
+
+- Rows: `mapie/raps/include_last_label=True` (MAPIE's default rule) and
+  `=randomized`; `puncc/raps/rand=False|True` and `torchcp/raps/randomized=False|True`
+  with fixed `lambda = 0.1`, `k_reg = 1` (penalty `lambda (o - k_reg)^+` with `o` the
+  1-based rank, the same convention in both libraries); reference rows
+  `reference/raps/deterministic|randomized` with the same parameters. crepes has no RAPS.
+- Grids: the split grid (`cls_gauss`, all `n`) and the toy grid (digits).
+- Laws: randomized RAPS has a continuous score, so the exact BetaBinomial law applies;
+  deterministic RAPS has score atoms and is tested one-sided, like deterministic APS.
+- MAPIE: reading the 1.6.0 source while implementing showed that
+  `SplitConformalClassifier` resets `RAPSConformityScore.size_raps` to None, so
+  scikit-learn's `StratifiedShuffleSplit` default test share 0.1 applies, not the
+  documented 0.2. MAPIE cells therefore use `n_eff = n - ceil(0.1 n)` (computed in floating
+  point as scikit-learn does), and the adapter records the size MAPIE actually used.
+  Two caveats: (1) the hold-out split is stratified by label, so the kept calibration
+  points are not a uniformly random subset; the n_eff law is then exact only up to the
+  effect of fixing the class counts, which we expect to be far below the resolution of
+  R = 200; (2) MAPIE's level check runs on the hold-out size, so levels with
+  `alpha < 1/ceil(0.1 n)` are refused although `k_eff <= n_eff` (OVER_REFUSED).
+- `scripts/raps_neff.py` tests the MAPIE randomized cells against the law at the nominal
+  `n`, at `n - ceil(0.1 n)` and at `n - ceil(0.2 n)` (hypothesis 6).
+
+### 14.2 Bracketing as rank recovery for classification
+
+`diagnostics.bracket_rank` had the lower end of the bracket one too low
+(`#{s <= a}` instead of `#{s < a} + 1`, with `a` the largest included test score), which
+made it blind to positive offsets. In v0.1 bracketing was diagnostic only, so no status
+changed. Round 2 fixes it and promotes it to a deterministic check (like rank recovery)
+for LAC and class-conditional LAC (one bracket per class against that class's `k_y`).
+With `m = 500` test points and `K` labels, a one-step error is visible in a repetition
+whenever some test score falls between `s_(k)` and `s_(k+-1)`; over 200 repetitions a
+systematic error is caught with near certainty at any `n`. A set that is not a threshold
+set of `1 - p` (beyond the float tolerance) is recorded as `nt` and carries no offset.
+APS and RAPS are not bracketed: their deterministic set rules differ between libraries
+(whether the label crossing the threshold is included), so an offset would grade a
+convention rather than the order statistic.
+
+### 14.3 Informative synthetic classifier
+
+`cls_gauss_inf` draws the same four Gaussians as `cls_gauss` and uses the Bayes
+posterior (`logits = mu_c . x - |mu_c|^2 / 2`, temperature 1; top-1 accuracy 0.708 on
+100,000 draws, against 0.118 for the `cls_gauss` model). It runs every split
+classification row (LAC, APS, RAPS).
+
+### 14.4 Round-2 hypotheses
+
+8. **MAPIE APS `include_last_label=False` over-covers on `cls_gauss_inf`**, as on digits:
+   with an informative model the deterministic rule keeps the top label and drops the
+   rest more rarely than the randomized calibration scores allow for.
+9. **Randomized RAPS passes in puncc and TorchCP; MAPIE RAPS `randomized` passes against
+   `n - ceil(0.1 n)`** and `include_last_label=True` is conservative, as for APS.
+10. **Bracketing confirms F2/F3-type boundary effects at large n for crepes unsmoothed
+    LAC** (k + 1 at n = 999, alpha in {0.1, 0.2}) and finds no offset in the other LAC
+    rows.
