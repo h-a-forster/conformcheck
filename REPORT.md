@@ -463,6 +463,9 @@ None of this makes MAPIE's RAPS sets invalid where they are returned. The findin
 silently ignored parameter, plus a minimum sample size that the user meets as a
 scikit-learn error.
 
+Generated repros: `mapie__raps__include_last_label-*__raises*.py` (the level check and
+the two scikit-learn errors) and `mapie__raps__include_last_label-True__coverage.py`.
+
 ### F10. puncc randomized RAPS: the set rule does not match puncc's own score (over-coverage, round 2)
 
 `puncc/raps/rand=True` (lambda = 0.1, k_reg = 1) is CONSERVATIVE in 63 cells and
@@ -498,6 +501,10 @@ under numpy 2.5.4 and under puncc's declared `numpy<2` (numpy 1.26.4, Python 3.1
 sets remain valid (they over-cover), but they are larger than RAPS needs, which works
 against the purpose of the regularization. TorchCP's randomized RAPS, whose set is
 `score <= tau` with the same score, passes every cell.
+
+Repros: `manual__puncc__raps__set_rule_vs_score.py` and the generated
+`puncc__raps__rand-True__coverage.py` (0.954 against 0.833 at n = 5, alpha = 0.2); both
+were re-checked under `numpy<2`.
 
 ## 5. Pre-registered hypotheses
 

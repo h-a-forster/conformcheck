@@ -1,0 +1,4 @@
+mapie 1.6.0, numpy 2.5.4
+n=20, alpha=1/5 (passed as 0.2): k=17 <= n: a finite valid set exists
+seed 0: raised ValueError: The test_size = 2 should be greater or equal to the number of classes = 4
+REPRODUCED

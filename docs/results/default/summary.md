@@ -1,21 +1,25 @@
 # Summary: study `default`
 
-Versions: conformcheck 0.1.0.dev0, crepes 0.9.1, mapie 1.6.0, numpy 2.5.4, puncc 0.9.3, python 3.13.1, scikit-learn 1.9.1, scipy 1.18.1, torch 2.14.1+cpu, torchcp 1.2.1
+Versions: conformcheck 0.1.0, crepes 0.9.1, mapie 1.6.0, numpy 2.5.4, puncc 0.9.3, python 3.13.1, scikit-learn 1.9.1, scipy 1.18.1, torch 2.14.1+cpu, torchcp 1.2.1
 
-**Headline.** 15 of 31 library-method rows are flagged (FAIL, CONSERVATIVE, LAW_MISMATCH, OVER_REFUSED or ERROR) in at least one cell with n <= 100. A documented row is excused only for its documented status.
+**Headline.** 18 of 37 library-method rows are flagged (FAIL, CONSERVATIVE, LAW_MISMATCH, OVER_REFUSED or ERROR) in at least one cell with n <= 100. A documented row is excused only for its documented status.
 
-Small-n status counts: CONSERVATIVE 3, ERROR 8, OVER_REFUSED 4, PASS 9, REFUSED 7
+Small-n status counts: CONSERVATIVE 3, ERROR 10, LAW_MISMATCH 1, OVER_REFUSED 4, PASS 11, REFUSED 8
 
 ## Oracle controls
 
-Size (reference implementations through the same pipeline): reference_cells = 889, reference_statistical_cells = 675, reference_holm_rejections = 0, reference_nonpass_cells = 0, reference_raw_rejections_at_0.05 = 21, reference_exact_mean_tests = 402, reference_exact_mean_rejections_at_0.05 = 19, reference_exact_mean_rejection_rate = 0.0473
+Size (reference implementations through the same pipeline): reference_cells = 1329, reference_statistical_cells = 1010, reference_holm_rejections = 0, reference_nonpass_cells = 0, reference_raw_rejections_at_0.05 = 28, reference_exact_mean_tests = 562, reference_exact_mean_rejections_at_0.05 = 20, reference_exact_mean_rejection_rate = 0.0356
 
-Power (mutants; statistical detections / cells per n, deterministic included in 'any'; cells where the mutant uses the correct order statistic are excluded):
+Power (mutants of split regression and LAC; statistical detections / cells per n, deterministic rank recovery or bracketing included in 'any'; cells where the mutant uses the correct order statistic are excluded):
 
-- `k_minus_1`: n=5: 8/8 (any 8); n=9: 8/8 (any 8); n=10: 16/16 (any 16); n=19: 14/16 (any 16); n=20: 15/16 (any 16); n=49: 12/16 (any 13); n=50: 13/20 (any 16); n=99: 9/20 (any 15); n=100: 9/16 (any 11); n=999: 3/12 (any 9); n=1000: 3/12 (any 9)
-- `k_plus_1`: n=5: 8/8 (any 8); n=9: 7/8 (any 8); n=10: 14/16 (any 16); n=19: 14/16 (any 16); n=20: 12/16 (any 16); n=49: 10/16 (any 13); n=50: 15/20 (any 18); n=99: 8/20 (any 15); n=100: 7/16 (any 13); n=999: 3/12 (any 9); n=1000: 3/12 (any 9)
-- `no_correction_linear`: n=5: 8/8 (any 8); n=9: 8/8 (any 8); n=10: 16/16 (any 16); n=19: 10/16 (any 15); n=20: 15/16 (any 16); n=49: 10/16 (any 13); n=50: 12/20 (any 15); n=99: 7/20 (any 13); n=100: 8/16 (any 11); n=999: 3/12 (any 9); n=1000: 3/12 (any 9)
-- `n_instead_of_n_plus_1`: n=5: 4/4 (any 4); n=10: 12/12 (any 12); n=20: 11/12 (any 12); n=49: 3/4 (any 3); n=50: 10/16 (any 13); n=100: 6/12 (any 8); n=1000: 0/9 (any 6)
+- `split_abs/k_minus_1`: n=5: 6/6 (any 6); n=9: 6/6 (any 6); n=10: 11/11 (any 11); n=19: 9/11 (any 11); n=20: 11/12 (any 12); n=49: 8/12 (any 9); n=50: 8/14 (any 11); n=99: 5/14 (any 11); n=100: 7/12 (any 9); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `split_abs/k_plus_1`: n=5: 6/6 (any 6); n=9: 5/6 (any 6); n=10: 9/11 (any 11); n=19: 9/11 (any 11); n=20: 8/12 (any 12); n=49: 7/12 (any 10); n=50: 9/14 (any 12); n=99: 5/14 (any 12); n=100: 4/12 (any 10); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `split_abs/no_correction_linear`: n=5: 6/6 (any 6); n=9: 6/6 (any 6); n=10: 11/11 (any 11); n=19: 6/11 (any 11); n=20: 11/12 (any 12); n=49: 6/12 (any 9); n=50: 8/14 (any 11); n=99: 5/14 (any 11); n=100: 5/12 (any 9); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `split_abs/n_instead_of_n_plus_1`: n=5: 3/3 (any 3); n=10: 8/8 (any 8); n=20: 8/9 (any 9); n=49: 2/3 (any 2); n=50: 6/11 (any 9); n=100: 5/9 (any 7); n=1000: 0/6 (any 6)
+- `lac/k_minus_1`: n=5: 4/4 (any 4); n=9: 4/4 (any 4); n=10: 8/8 (any 8); n=19: 8/8 (any 8); n=20: 8/8 (any 8); n=49: 8/8 (any 8); n=50: 9/10 (any 10); n=99: 7/10 (any 10); n=100: 4/8 (any 8); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `lac/k_plus_1`: n=5: 4/4 (any 4); n=9: 4/4 (any 4); n=10: 8/8 (any 8); n=19: 8/8 (any 8); n=20: 8/8 (any 8); n=49: 7/8 (any 8); n=50: 10/10 (any 10); n=99: 5/10 (any 10); n=100: 5/8 (any 8); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `lac/no_correction_linear`: n=5: 4/4 (any 4); n=9: 4/4 (any 4); n=10: 8/8 (any 8); n=19: 6/8 (any 8); n=20: 8/8 (any 8); n=49: 6/8 (any 8); n=50: 7/10 (any 10); n=99: 5/10 (any 10); n=100: 4/8 (any 8); n=999: 2/8 (any 8); n=1000: 2/8 (any 8)
+- `lac/n_instead_of_n_plus_1`: n=5: 2/2 (any 2); n=10: 6/6 (any 6); n=20: 6/6 (any 6); n=49: 2/2 (any 2); n=50: 7/8 (any 8); n=100: 2/6 (any 6); n=1000: 0/6 (any 6)
 
 ## Flagged rows
 
@@ -46,7 +50,7 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=20 a=3/70: REFUSED (refused (k > n))
 - cls_gauss n=49 a=1/5: FAIL (Holm p=0, coverage 0.5251 vs 0.8000)
 - cls_gauss n=49 a=1/10: FAIL (Holm p=0, coverage 0.5576 vs 0.9000)
-- ... 36 more in cells.csv
+- ... 89 more in cells.csv
 
 ### `mapie/aps/include_last_label=True` (MAPIE documents include_last_label=True as conservative)
 
@@ -59,23 +63,23 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=9 a=1/10: ERROR (1/200 reps raised)
 - cls_gauss n=9 a=9/100: ERROR (1/200 reps raised)
 - cls_gauss n=9 a=1/20: ERROR (1/200 reps raised)
-- cls_gauss n=10 a=1/5: CONSERVATIVE (Holm p=2.6e-58, coverage 0.9084 vs 0.8182)
-- cls_gauss n=10 a=1/10: CONSERVATIVE (Holm p=4.1e-41, coverage 0.9677 vs 0.9091)
+- cls_gauss n=10 a=1/5: CONSERVATIVE (Holm p=3.7e-58, coverage 0.9084 vs 0.8182)
+- cls_gauss n=10 a=1/10: CONSERVATIVE (Holm p=5.7e-41, coverage 0.9677 vs 0.9091)
 - cls_gauss n=10 a=1/11: OVER_REFUSED (refused a feasible level (k <= n))
 - cls_gauss n=10 a=9/110: REFUSED (refused (k > n))
 - cls_gauss n=10 a=1/20: REFUSED (refused (k > n))
-- cls_gauss n=19 a=1/5: CONSERVATIVE (Holm p=5.1e-99, coverage 0.8893 vs 0.8000)
-- cls_gauss n=19 a=1/10: CONSERVATIVE (Holm p=2e-87, coverage 0.9580 vs 0.9000)
+- cls_gauss n=19 a=1/5: CONSERVATIVE (Holm p=7.1e-99, coverage 0.8893 vs 0.8000)
+- cls_gauss n=19 a=1/10: CONSERVATIVE (Holm p=2.8e-87, coverage 0.9580 vs 0.9000)
 - cls_gauss n=19 a=1/20: OVER_REFUSED (refused a feasible level (k <= n))
 - cls_gauss n=19 a=9/200: REFUSED (refused (k > n))
-- cls_gauss n=20 a=1/5: CONSERVATIVE (Holm p=5.7e-173, coverage 0.9153 vs 0.8095)
-- cls_gauss n=20 a=1/10: CONSERVATIVE (Holm p=1.4e-181, coverage 0.9681 vs 0.9048)
-- cls_gauss n=20 a=1/20: CONSERVATIVE (Holm p=9.4e-113, coverage 0.9887 vs 0.9524)
+- cls_gauss n=20 a=1/5: CONSERVATIVE (Holm p=8e-173, coverage 0.9153 vs 0.8095)
+- cls_gauss n=20 a=1/10: CONSERVATIVE (Holm p=2e-181, coverage 0.9681 vs 0.9048)
+- cls_gauss n=20 a=1/20: CONSERVATIVE (Holm p=1.3e-112, coverage 0.9887 vs 0.9524)
 - cls_gauss n=20 a=1/21: OVER_REFUSED (refused a feasible level (k <= n))
 - cls_gauss n=20 a=3/70: REFUSED (refused (k > n))
 - cls_gauss n=49 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9004 vs 0.8000)
 - cls_gauss n=49 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9659 vs 0.9000)
-- ... 36 more in cells.csv
+- ... 89 more in cells.csv
 
 ### `mapie/aps/include_last_label=randomized`
 
@@ -104,7 +108,7 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=100 a=1/101: OVER_REFUSED (refused a feasible level (k <= n))
 - cls_gauss n=100 a=9/1010: REFUSED (refused (k > n))
 - cls_gauss n=999 a=1/1000: OVER_REFUSED (refused a feasible level (k <= n))
-- ... 3 more in cells.csv
+- ... 33 more in cells.csv
 
 ### `mapie/cqr/asymmetric`
 
@@ -199,7 +203,65 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=999 a=1/1000: OVER_REFUSED (refused a feasible level (k <= n))
 - cls_gauss n=999 a=9/10000: REFUSED (refused (k > n))
 - cls_gauss n=1000 a=1/1001: OVER_REFUSED (refused a feasible level (k <= n))
-- ... 1 more in cells.csv
+- ... 27 more in cells.csv
+
+### `mapie/raps/include_last_label=True` (MAPIE documents include_last_label=True as conservative)
+
+- cls_gauss n=5 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/6: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=3/20: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=9/100: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/11: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=9/110: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=9/200: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/21: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=3/70: ERROR (200/200 reps raised)
+- cls_gauss n=49 a=1/5: CONSERVATIVE (Holm p=7.5e-280, coverage 0.8992 vs 0.8000)
+- cls_gauss n=49 a=1/10: OVER_REFUSED (refused a feasible level (k <= n))
+- ... 89 more in cells.csv
+
+### `mapie/raps/include_last_label=randomized`
+
+- cls_gauss n=5 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/6: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=3/20: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=5 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=9/100: ERROR (200/200 reps raised)
+- cls_gauss n=9 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/11: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=9/110: ERROR (200/200 reps raised)
+- cls_gauss n=10 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=19 a=9/200: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/5: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/10: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/20: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=1/21: ERROR (200/200 reps raised)
+- cls_gauss n=20 a=3/70: ERROR (200/200 reps raised)
+- cls_gauss n=49 a=1/10: OVER_REFUSED (refused a feasible level (k <= n))
+- cls_gauss n=49 a=1/20: OVER_REFUSED (refused a feasible level (k <= n))
+- ... 63 more in cells.csv
 
 ### `mapie/split_abs/allow_infinite_bounds`
 
@@ -261,28 +323,44 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 
 ### `crepes/class_conditional/unsmoothed`
 
-- cls_gauss n=5 a=1/6: CONSERVATIVE (Holm p=0, coverage 1.0000 vs 0.8333)
-- cls_gauss n=9 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9010 vs 0.8000)
-- cls_gauss n=9 a=1/10: CONSERVATIVE (Holm p=0, coverage 1.0000 vs 0.9000)
-- cls_gauss n=19 a=1/5: CONSERVATIVE (Holm p=5.1e-73, coverage 0.8494 vs 0.8000)
-- cls_gauss n=19 a=1/10: CONSERVATIVE (Holm p=7.7e-209, coverage 0.9495 vs 0.9000)
-- cls_gauss n=49 a=1/5: CONSERVATIVE (Holm p=1.2e-08, coverage 0.8162 vs 0.8000)
-- cls_gauss n=49 a=1/10: CONSERVATIVE (Holm p=2.1e-17, coverage 0.9172 vs 0.9000)
-- cls_gauss n=99 a=1/5: CONSERVATIVE (Holm p=3.5e-06, coverage 0.8115 vs 0.8000)
-- cls_gauss n=99 a=1/10: CONSERVATIVE (Holm p=1.8e-11, coverage 0.9110 vs 0.9000)
+- cls_gauss n=5 a=1/6: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=9 a=1/5: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=9 a=1/10: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=19 a=1/5: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=19 a=1/10: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=49 a=1/5: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=49 a=1/10: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=99 a=1/5: CONSERVATIVE (bracket +1 in 199 reps)
+- cls_gauss n=99 a=1/10: CONSERVATIVE (bracket +1 in 199 reps)
 
 ### `crepes/lac/unsmoothed`
 
-- cls_gauss n=5 a=1/6: CONSERVATIVE (Holm p=0, coverage 1.0000 vs 0.8333)
-- cls_gauss n=9 a=1/5: CONSERVATIVE (Holm p=1.1e-48, coverage 0.8942 vs 0.8000)
-- cls_gauss n=9 a=1/10: CONSERVATIVE (Holm p=0, coverage 1.0000 vs 0.9000)
-- cls_gauss n=19 a=1/5: CONSERVATIVE (Holm p=2.3e-09, coverage 0.8431 vs 0.8000)
-- cls_gauss n=19 a=1/10: CONSERVATIVE (Holm p=3.7e-39, coverage 0.9466 vs 0.9000)
-- cls_gauss n=49 a=1/10: CONSERVATIVE (Holm p=3.2e-06, coverage 0.9183 vs 0.9000)
-- cls_gauss n=99 a=1/10: CONSERVATIVE (Holm p=2.4e-05, coverage 0.9131 vs 0.9000)
-- cls_gauss n=1000 a=1/1001: CONSERVATIVE (Holm p=0, coverage 1.0000 vs 0.9990)
-- digits n=19 a=1/5: CONSERVATIVE (Holm p=1.4e-09, coverage 0.8435 vs 0.8000)
-- digits n=19 a=1/10: CONSERVATIVE (Holm p=4.7e-48, coverage 0.9476 vs 0.9000)
+- cls_gauss n=5 a=1/6: CONSERVATIVE (bracket +1 in 199 reps)
+- cls_gauss n=9 a=1/5: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=9 a=1/10: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss n=19 a=1/5: CONSERVATIVE (bracket +1 in 197 reps)
+- cls_gauss n=19 a=1/10: CONSERVATIVE (bracket +1 in 195 reps)
+- cls_gauss n=49 a=1/5: CONSERVATIVE (bracket +1 in 197 reps)
+- cls_gauss n=49 a=1/10: CONSERVATIVE (bracket +1 in 195 reps)
+- cls_gauss n=99 a=1/5: CONSERVATIVE (bracket +1 in 183 reps)
+- cls_gauss n=99 a=1/10: CONSERVATIVE (bracket +1 in 185 reps)
+- cls_gauss n=999 a=1/5: CONSERVATIVE (bracket +1 in 103 reps)
+- cls_gauss n=999 a=1/10: CONSERVATIVE (bracket +1 in 94 reps)
+- cls_gauss n=1000 a=1/1001: CONSERVATIVE (bracket +1 in 116 reps)
+- cls_gauss_inf n=5 a=1/6: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss_inf n=9 a=1/5: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss_inf n=9 a=1/10: CONSERVATIVE (bracket +1 in 200 reps)
+- cls_gauss_inf n=19 a=1/5: CONSERVATIVE (bracket +1 in 199 reps)
+- cls_gauss_inf n=19 a=1/10: CONSERVATIVE (bracket +1 in 199 reps)
+- cls_gauss_inf n=49 a=1/5: CONSERVATIVE (bracket +1 in 194 reps)
+- cls_gauss_inf n=49 a=1/10: CONSERVATIVE (bracket +1 in 199 reps)
+- cls_gauss_inf n=99 a=1/5: CONSERVATIVE (bracket +1 in 191 reps)
+- cls_gauss_inf n=99 a=1/10: CONSERVATIVE (bracket +1 in 196 reps)
+- cls_gauss_inf n=999 a=1/5: CONSERVATIVE (bracket +1 in 125 reps)
+- cls_gauss_inf n=999 a=1/10: CONSERVATIVE (bracket +1 in 147 reps)
+- cls_gauss_inf n=1000 a=1/1001: CONSERVATIVE (bracket +1 in 200 reps)
+- digits n=19 a=1/5: CONSERVATIVE (bracket +1 in 189 reps)
+- ... 3 more in cells.csv
 
 ### `crepes/split_abs/default`
 
@@ -330,6 +408,17 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=100 a=9/1010: REFUSED (refused (k > n))
 - cls_gauss n=999 a=9/10000: REFUSED (refused (k > n))
 - cls_gauss n=1000 a=9/10010: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss_inf n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss_inf n=49 a=9/500: REFUSED (refused (k > n))
+- ... 5 more in cells.csv
 
 ### `puncc/aps/rand=True`
 
@@ -348,6 +437,17 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=100 a=9/1010: REFUSED (refused (k > n))
 - cls_gauss n=999 a=9/10000: REFUSED (refused (k > n))
 - cls_gauss n=1000 a=9/10010: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss_inf n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss_inf n=49 a=9/500: REFUSED (refused (k > n))
+- ... 5 more in cells.csv
 
 ### `puncc/class_conditional/default`
 
@@ -497,6 +597,75 @@ Power (mutants; statistical detections / cells per n, deterministic included in 
 - cls_gauss n=100 a=9/1010: REFUSED (refused (k > n))
 - cls_gauss n=999 a=9/10000: REFUSED (refused (k > n))
 - cls_gauss n=1000 a=9/10010: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss_inf n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss_inf n=49 a=9/500: REFUSED (refused (k > n))
+- ... 5 more in cells.csv
+
+### `puncc/raps/rand=False`
+
+- cls_gauss n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss n=49 a=9/500: REFUSED (refused (k > n))
+- cls_gauss n=50 a=3/170: REFUSED (refused (k > n))
+- cls_gauss n=99 a=9/1000: REFUSED (refused (k > n))
+- cls_gauss n=100 a=9/1010: REFUSED (refused (k > n))
+- cls_gauss n=999 a=9/10000: REFUSED (refused (k > n))
+- cls_gauss n=1000 a=9/10010: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss_inf n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss_inf n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss_inf n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss_inf n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss_inf n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss_inf n=49 a=9/500: REFUSED (refused (k > n))
+- ... 5 more in cells.csv
+
+### `puncc/raps/rand=True`
+
+- cls_gauss n=5 a=1/5: CONSERVATIVE (Holm p=4.7e-187, coverage 0.9390 vs 0.8333)
+- cls_gauss n=5 a=1/6: CONSERVATIVE (Holm p=1.4e-206, coverage 0.9388 vs 0.8333)
+- cls_gauss n=5 a=3/20: REFUSED (refused (k > n))
+- cls_gauss n=5 a=1/10: REFUSED (refused (k > n))
+- cls_gauss n=5 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=9 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9427 vs 0.8000)
+- cls_gauss n=9 a=1/10: CONSERVATIVE (Holm p=1.3e-233, coverage 0.9836 vs 0.9000)
+- cls_gauss n=9 a=9/100: REFUSED (refused (k > n))
+- cls_gauss n=9 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=10 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9638 vs 0.8182)
+- cls_gauss n=10 a=1/10: CONSERVATIVE (Holm p=3.1e-227, coverage 0.9902 vs 0.9091)
+- cls_gauss n=10 a=1/11: CONSERVATIVE (Holm p=5.6e-233, coverage 0.9899 vs 0.9091)
+- cls_gauss n=10 a=9/110: REFUSED (refused (k > n))
+- cls_gauss n=10 a=1/20: REFUSED (refused (k > n))
+- cls_gauss n=19 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9603 vs 0.8000)
+- cls_gauss n=19 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9900 vs 0.9000)
+- cls_gauss n=19 a=1/20: CONSERVATIVE (Holm p=7.4e-250, coverage 0.9962 vs 0.9500)
+- cls_gauss n=19 a=9/200: REFUSED (refused (k > n))
+- cls_gauss n=20 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9755 vs 0.8095)
+- cls_gauss n=20 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9928 vs 0.9048)
+- cls_gauss n=20 a=1/20: CONSERVATIVE (Holm p=2.8e-276, coverage 0.9972 vs 0.9524)
+- cls_gauss n=20 a=1/21: CONSERVATIVE (Holm p=3.3e-244, coverage 0.9969 vs 0.9524)
+- cls_gauss n=20 a=3/70: REFUSED (refused (k > n))
+- cls_gauss n=49 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9734 vs 0.8000)
+- cls_gauss n=49 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9923 vs 0.9000)
+- ... 70 more in cells.csv
 
 ### `puncc/split_abs/default`
 

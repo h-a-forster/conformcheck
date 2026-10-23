@@ -1,0 +1,5 @@
+mapie 1.6.0, numpy 2.5.4
+draw 132 skipped: ValueError: The least populated classes in y have only 1 member, which is too few. The minimum number of groups for any class cannot be less than 2. Classes with too few members are: [1]
+1 of 400 draws raised and were skipped
+n=49 alpha=1/5: coverage 0.9057 +- 0.0031 (SE) over R=399 draws of m=200; exact target 0.8000; z = +33.7
+REPRODUCED

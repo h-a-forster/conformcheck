@@ -43,3 +43,18 @@ n=9, alpha=1/5 (passed as 0.2): k=8 <= n: a finite valid set exists
 seed 0: raised TypeError: object of type 'numpy.float64' has no len()
 REPRODUCED
 exit=1
+=== puncc__raps__rand-True__coverage.py
+puncc 0.9.3, numpy 1.26.4
+n=5 alpha=1/5: coverage 0.9539 +- 0.0071 (SE) over R=400 draws of m=200; exact target 0.8333; z = +16.9
+REPRODUCED
+exit=1
+=== manual__puncc__raps__set_rule_vs_score.py
+puncc 0.9.3 numpy 1.26.4
+tau = 0.95, lambda = 0.1, k_reg = 1, p = [0.45, 0.3, 0.15, 0.1]
+label 0 (p=0.45): in raps_set 1.0000, raps_score <= tau 1.0000
+label 1 (p=0.30): in raps_set 1.0000, raps_score <= tau 1.0000
+label 2 (p=0.15): in raps_set 0.4013, raps_score <= tau 0.0000
+label 3 (p=0.10): in raps_set 0.0000, raps_score <= tau 0.0000
+largest gap 0.4013 (Monte Carlo SE about 0.0011)
+REPRODUCED
+exit=1

@@ -120,6 +120,55 @@
       "exit_code": 1
     },
     {
+      "title": "mapie/raps/include_last_label=True coverage: CONSERVATIVE at cls_gauss n=49 alpha=1/5",
+      "file": "mapie__raps__include_last_label-True__coverage.py",
+      "row": "mapie/raps/include_last_label=True",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=True raises: OVER_REFUSED at cls_gauss n=49 alpha=1/10",
+      "file": "mapie__raps__include_last_label-True__raises.py",
+      "row": "mapie/raps/include_last_label=True",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=True raises-2: ERROR at cls_gauss n=5 alpha=1/5",
+      "file": "mapie__raps__include_last_label-True__raises-2.py",
+      "row": "mapie/raps/include_last_label=True",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=True raises-3: ERROR at cls_gauss n=20 alpha=1/5",
+      "file": "mapie__raps__include_last_label-True__raises-3.py",
+      "row": "mapie/raps/include_last_label=True",
+      "kind": "raises-3",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=randomized raises: OVER_REFUSED at cls_gauss n=49 alpha=1/10",
+      "file": "mapie__raps__include_last_label-randomized__raises.py",
+      "row": "mapie/raps/include_last_label=randomized",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=randomized raises-2: ERROR at cls_gauss n=5 alpha=1/5",
+      "file": "mapie__raps__include_last_label-randomized__raises-2.py",
+      "row": "mapie/raps/include_last_label=randomized",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/raps/include_last_label=randomized raises-3: ERROR at cls_gauss n=20 alpha=1/5",
+      "file": "mapie__raps__include_last_label-randomized__raises-3.py",
+      "row": "mapie/raps/include_last_label=randomized",
+      "kind": "raises-3",
+      "exit_code": 1
+    },
+    {
       "title": "mapie/split_abs/default raises: OVER_REFUSED at reg_gauss n=5 alpha=1/6",
       "file": "mapie__split_abs__default__raises.py",
       "row": "mapie/split_abs/default",
@@ -166,6 +215,13 @@
       "file": "puncc__jackknife_plus__K-n__raises.py",
       "row": "puncc/jackknife_plus/K=n",
       "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/raps/rand=True coverage: CONSERVATIVE at cls_gauss n=5 alpha=1/5",
+      "file": "puncc__raps__rand-True__coverage.py",
+      "row": "puncc/raps/rand=True",
+      "kind": "coverage",
       "exit_code": 1
     },
     {
@@ -239,5 +295,8 @@
       "exit_code": 1
     }
   ],
-  "skipped": []
+  "skipped": [
+    "mapie/raps/include_last_label=True (raises-4): no template",
+    "mapie/raps/include_last_label=randomized (raises-4): no template"
+  ]
 }

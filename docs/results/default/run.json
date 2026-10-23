@@ -1,12 +1,13 @@
 {
-  "elapsed_s_last_session": 143.8,
-  "ended": "2026-10-23T21:45:15",
-  "fingerprint": "bc040613bb12ec08",
-  "first_started": "2026-10-23T20:51:45",
+  "elapsed_s_last_session": 517.5,
+  "ended": "2026-10-24T00:31:57",
+  "fingerprint": "cbfed0fa569dc01f",
+  "first_started": "2026-10-24T00:02:45",
+  "missing_libraries": [],
   "platform": "Windows-11-10.0.26200-SP0",
   "processor": "AMD64 Family 23 Model 104 Stepping 1, AuthenticAMD",
   "source": "builtin:default",
-  "started": "2026-10-23T21:42:51",
+  "started": "2026-10-24T00:23:19",
   "study": {
     "alphas": [
       "0.05",
@@ -22,7 +23,8 @@
         "dgps": [
           "reg_gauss",
           "reg_hetero_t",
-          "cls_gauss"
+          "cls_gauss",
+          "cls_gauss_inf"
         ],
         "edge_alphas": null,
         "n": [
@@ -155,9 +157,10 @@
     "test_points": 500,
     "workers": 4
   },
-  "units_total": 984,
+  "units_skipped_missing": 0,
+  "units_total": 1412,
   "versions": {
-    "conformcheck": "0.1.0.dev0",
+    "conformcheck": "0.1.0",
     "crepes": "0.9.1",
     "mapie": "1.6.0",
     "numpy": "2.5.4",
@@ -168,5 +171,5 @@
     "torch": "2.14.1+cpu",
     "torchcp": "1.2.1"
   },
-  "workers": 4
+  "workers": 3
 }

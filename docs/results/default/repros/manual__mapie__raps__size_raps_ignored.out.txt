@@ -1,0 +1,5 @@
+mapie 1.6.0 numpy 2.5.4 scikit-learn 1.9.1
+size_raps=0.2: held out 10 of 100 points (expected 20); size_raps after conformalize: None
+size_raps=0.5: held out 10 of 100 points (expected 50); size_raps after conformalize: None
+REPRODUCED
+exit=1
