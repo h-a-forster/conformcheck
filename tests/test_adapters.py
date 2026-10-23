@@ -40,9 +40,9 @@ def _reg_input(alphas=(A10,), seed=0) -> tuple[RegressionInput, data.Draw]:
     )
 
 
-def _cls_input(alphas=(A10,), seed=0, per_class=False) -> ClassificationInput:
+def _cls_input(alphas=(A10,), seed=0, per_class=False, n=N) -> ClassificationInput:
     dgp = data.get_dgp("cls_gauss")
-    d = dgp.draw(np.random.default_rng(seed), N, M, per_class=per_class)
+    d = dgp.draw(np.random.default_rng(seed), n, M, per_class=per_class)
     mdl = dgp.model()
     return ClassificationInput(
         d.x_cal,
@@ -75,7 +75,7 @@ def test_registry_keys_and_specs() -> None:
     reg = registry()
     libs = {a.spec.library for a in reg.values()}
     assert libs == {"mapie", "crepes", "puncc", "torchcp", "reference"}
-    assert sum(a.spec.library != "reference" for a in reg.values()) == 31
+    assert sum(a.spec.library != "reference" for a in reg.values()) == 37
     for key, a in reg.items():
         assert key == a.spec.key
 
@@ -204,7 +204,9 @@ def test_classification_shapes_and_determinism(key: str) -> None:
     if not ad.available():
         pytest.skip("library not installed")
     per_class = ad.spec.method == "class_conditional"
-    ci = _cls_input(alphas=(A10, Fraction(1, 5)), per_class=per_class)
+    # MAPIE RAPS holds out ceil(0.1 n) points, stratified: it needs n >= 31 with 4 classes
+    n = 100 if key.startswith("mapie/raps/") else N
+    ci = _cls_input(alphas=(A10, Fraction(1, 5)), per_class=per_class, n=n)
     o1 = ad.run(ci)
     o2 = ad.run(ci)
     for a in ci.alphas:

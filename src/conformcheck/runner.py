@@ -43,6 +43,8 @@ from conformcheck.data import get_dgp, library_seed, rep_seed_sequence
 from conformcheck.study import Study, Unit, cell_law, enumerate_units, fingerprint
 
 MAX_WORKERS = 4
+# Set methods whose sets are thresholds of the LAC score 1 - p_y (bracketing applies).
+BRACKET_METHODS = ("lac", "class_conditional")
 THREAD_ENV = ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS")
 
 # Deterministic library methods and the reference they are compared with (information
@@ -56,6 +58,8 @@ REFERENCE_FOR: dict[tuple[str, str], str] = {
     ("lac", "unsmoothed"): "reference/lac/default",
     ("aps", "rand=False"): "reference/aps/deterministic",
     ("aps", "randomized=False"): "reference/aps/deterministic",
+    ("raps", "rand=False"): "reference/raps/deterministic",
+    ("raps", "randomized=False"): "reference/raps/deterministic",
     ("class_conditional", "default"): "reference/class_conditional/default",
     ("class_conditional", "unsmoothed"): "reference/class_conditional/default",
 }
@@ -172,6 +176,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "rank_interp": 0,
             "rank_spread": 0.0,
             "bracket_offsets": Counter(),
+            "effective_n": Counter(),
             "diff_max": None,
             "ties_reps": 0,
         }
@@ -280,19 +285,19 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
                     spread = max(r.spread for r in ranks)
                     if math.isfinite(spread):
                         st["rank_spread"] = max(st["rank_spread"], spread)
-            # bracketing (LAC with deterministic sets, diagnostic only)
+            # bracketing: rank recovery for LAC-type set methods with deterministic sets
             if (
                 o.sets is not None
-                and spec.method == "lac"
+                and spec.method in BRACKET_METHODS
                 and spec.variant != "smoothed"
-                and cl.k is not None
+                and cl.kind == "exact"
                 and proba_test is not None
             ):
-                pc = inp.proba_cal  # type: ignore[union-attr]
-                cal_scores = 1.0 - pc[np.arange(n), np.asarray(draw.y_cal, dtype=int)]
-                br = diagnostics.bracket_rank(cal_scores, 1.0 - proba_test, o.sets)
-                if br is not None:
-                    st["bracket_offsets"][str(_bracket_offset(br, cl.k))] += 1
+                off = _bracket(spec.method, inp, draw, proba_test, o.sets, a)  # type: ignore[arg-type]
+                if off is not None:
+                    st["bracket_offsets"][off] += 1
+            if o.effective_n is not None:
+                st["effective_n"][str(o.effective_n)] += 1
             # differential check against the reference implementation
             if ref_outs is not None and ref_outs.get(a) is not None and ref_outs[a].status == "ok":
                 r = ref_outs[a]
@@ -321,7 +326,8 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "rank_pairs": dict(st["rank_pairs"]),  # "lower|upper" endpoint offsets
             "rank_interp": st["rank_interp"],
             "rank_spread": st["rank_spread"],
-            "bracket_offsets": dict(st["bracket_offsets"]),
+            "bracket_offsets": dict(st["bracket_offsets"]),  # "nt": not a threshold set
+            "effective_n": dict(st["effective_n"]),  # calibration size the library used
             "diff_max": st["diff_max"],
             "ties_reps": st["ties_reps"],
         }
@@ -330,10 +336,48 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
     return record
 
 
-def _bracket_offset(br: diagnostics.RankRange, k: int) -> int:
-    if br.k_lo <= k <= br.k_hi:
-        return 0
-    return br.k_lo - k if k < br.k_lo else br.k_hi - k
+def _bracket(
+    method: str,
+    inp: ClassificationInput,
+    draw: Any,
+    proba_test: np.ndarray,
+    sets: np.ndarray,
+    alpha: Fraction,
+) -> str | None:
+    """Bracket offset of one repetition as a string key (``"nt"``: not a threshold set).
+
+    LAC: one bracket over every label of every test point, against the order statistic
+    ``k`` of all ``n`` calibration scores ``1 - p_y``. Mondrian (class-conditional) LAC:
+    one bracket per class against that class's own calibration scores and ``k_y``; the
+    offset with the largest magnitude is kept.
+    """
+    sets = np.asarray(sets, dtype=bool)
+    y_cal = np.asarray(draw.y_cal, dtype=int)
+    p_cal = inp.proba_cal
+    cal_scores = 1.0 - p_cal[np.arange(y_cal.size), y_cal]
+    test_scores = 1.0 - np.asarray(proba_test, dtype=float)
+    if method == "lac":
+        groups = [(cal_scores, test_scores, sets, laws.split_index(y_cal.size, alpha))]
+    else:
+        groups = []
+        for c in range(test_scores.shape[1]):
+            n_c = int(np.sum(y_cal == c))
+            k_c = laws.split_index(n_c, alpha)
+            if n_c == 0 or k_c > n_c:
+                continue
+            groups.append((cal_scores[y_cal == c], test_scores[:, c], sets[:, c], k_c))
+    offs: list[int] = []
+    for cal, test, st, k in groups:
+        br = diagnostics.bracket_rank(cal, test, st)
+        if br is None:
+            continue
+        off = diagnostics.bracket_offset(br, k)
+        if off is None:
+            return "nt"
+        offs.append(off)
+    if not offs:
+        return None
+    return str(max(offs, key=abs))
 
 
 # --- the study --------------------------------------------------------------------------

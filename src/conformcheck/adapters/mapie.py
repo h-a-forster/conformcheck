@@ -4,7 +4,13 @@ Methods: SplitConformalRegressor (absolute; default and ``allow_infinite_bounds=
 ConformalizedQuantileRegressor (prefit, ``symmetric_correction`` False (default) and
 True), CrossConformalRegressor (``method="plus"``, LeaveOneOut and KFold) and
 SplitConformalClassifier (lac; aps with ``include_last_label`` False, True and
-"randomized"). RAPS is not run in v0.1 (docs/DESIGN.md, section 2). See section 5.1.
+"randomized"; raps with ``include_last_label`` True (the default) and "randomized").
+See docs/DESIGN.md, section 5.1.
+
+RAPS: MAPIE holds out part of the conformalization data to tune lambda and k_reg
+(``RAPSConformityScore.split_data``), so it calibrates on fewer points. The adapter passes
+a ``RAPSConformityScore()`` instance (equivalent to ``conformity_score="raps"``) and
+reports the calibration size MAPIE used, read from that object, as ``effective_n``.
 """
 
 from __future__ import annotations
@@ -127,10 +133,15 @@ class MapieClassifier(_Mapie):
     def run_alpha(self, data: ClassificationInput, alpha: Fraction) -> AlphaOutput:  # type: ignore[override]
         from mapie.classification import SplitConformalClassifier
 
+        score: object = self.score
+        if self.score == "raps":
+            from mapie.conformity_scores import RAPSConformityScore
+
+            score = RAPSConformityScore()
         clf = SplitConformalClassifier(
             data.model,
             confidence_level=confidence_value(alpha),
-            conformity_score=self.score,
+            conformity_score=score,
             prefit=True,
             random_state=data.seed,
         )
@@ -141,7 +152,11 @@ class MapieClassifier(_Mapie):
             else {"include_last_label": self.include_last_label}
         )
         _, sets = clf.predict_set(data.x_test, conformity_score_params=params)
-        return AlphaOutput(sets=np.asarray(sets, dtype=bool)[:, :, 0])
+        eff = getattr(score, "n_samples_", None) if self.score == "raps" else None
+        return AlphaOutput(
+            sets=np.asarray(sets, dtype=bool)[:, :, 0],
+            effective_n=None if eff is None else int(eff),
+        )
 
 
 def adapters() -> list[LibraryAdapter]:
@@ -157,4 +172,6 @@ def adapters() -> list[LibraryAdapter]:
         MapieClassifier("aps", False),
         MapieClassifier("aps", True),
         MapieClassifier("aps", "randomized"),
+        MapieClassifier("raps", True),
+        MapieClassifier("raps", "randomized"),
     ]

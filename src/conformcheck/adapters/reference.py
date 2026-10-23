@@ -121,6 +121,8 @@ class RefClassifier(_Reference):
             sets = ref.lac(pc, yc, pt, a, mutant)
         elif self.method == "aps":
             sets = ref.aps(pc, yc, pt, a, randomized=self.variant == "randomized", rng=rng)
+        elif self.method == "raps":
+            sets = ref.raps(pc, yc, pt, a, randomized=self.variant == "randomized", rng=rng)
         elif self.method == "class_conditional":
             sets = ref.class_conditional_lac(pc, yc, pt, a)
         else:  # pragma: no cover - defensive
@@ -140,6 +142,8 @@ def adapters(mutants: tuple[str, ...] = ref.MUTANTS) -> list[LibraryAdapter]:
         RefClassifier("lac", "smoothed"),
         RefClassifier("aps", "deterministic"),
         RefClassifier("aps", "randomized"),
+        RefClassifier("raps", "deterministic"),
+        RefClassifier("raps", "randomized"),
         RefClassifier("class_conditional"),
     ]
     out += [RefSplitAbs(m) for m in mutants]

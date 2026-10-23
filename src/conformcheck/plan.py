@@ -1,15 +1,19 @@
 """``conformcheck plan``: enumerate a study's units and estimate its run time.
 
-The estimate probes each (adapter, grid, dgp) group at its smallest and largest ``n``
-with two repetitions (after one warm-up call, so import time is excluded), interpolates
-the per-repetition cost linearly in ``n``, and divides the total by the worker count.
-It is an estimate; ``progress.log`` reports the real rate during the run.
+The estimate probes each (adapter, grid, dgp) group at its smallest, middle (median of
+the distinct values) and largest ``n`` with two repetitions (after one warm-up call, so
+import time is excluded), interpolates the per-repetition cost piecewise linearly in
+``n``, and divides the total by the worker count. It is an estimate, and on the default
+study it has run low (REPORT.md, section 1); ``progress.log`` reports the real rate
+during the run.
 """
 
 from __future__ import annotations
 
 import time
 from collections import Counter, defaultdict
+
+import numpy as np
 
 from conformcheck.runner import evaluate_unit
 from conformcheck.study import Study, Unit, enumerate_units
@@ -22,6 +26,21 @@ def _probe(unit: Unit, seed: int, test_points: int, reps: int = 2) -> float:
     return (time.perf_counter() - t) / reps
 
 
+def probe_points(units: list[Unit]) -> list[Unit]:
+    """The units probed for one group: smallest, middle and largest distinct ``n``."""
+    by_n: dict[int, Unit] = {}
+    for u in sorted(units, key=lambda u: u.n):
+        by_n.setdefault(u.n, u)
+    ns = sorted(by_n)
+    picks = sorted({ns[0], ns[(len(ns) - 1) // 2], ns[-1]})
+    return [by_n[n] for n in picks]
+
+
+def _costs(study: Study, units: list[Unit]) -> tuple[list[int], list[float]]:
+    pts = probe_points(units)
+    return [u.n for u in pts], [_probe(u, study.seed, study.test_points) for u in pts]
+
+
 def estimate_seconds(study: Study, units: list[Unit], echo=print) -> float:  # type: ignore[no-untyped-def]
     groups: dict[tuple[str, str, str], list[Unit]] = defaultdict(list)
     for u in units:
@@ -30,16 +49,10 @@ def estimate_seconds(study: Study, units: list[Unit], echo=print) -> float:  # t
     total = 0.0
     for (adapter, grid, dgp), us in sorted(groups.items()):
         us = sorted(us, key=lambda u: u.n)
-        lo, hi = us[0], us[-1]
         if adapter.split("/")[0] not in warmed:
-            _probe(lo, study.seed, study.test_points, reps=1)
+            _probe(us[0], study.seed, study.test_points, reps=1)
             warmed.add(adapter.split("/")[0])
-        c_lo = _probe(lo, study.seed, study.test_points)
-        c_hi = c_lo if hi is lo else _probe(hi, study.seed, study.test_points)
-        sub = 0.0
-        for u in us:
-            frac = 0.0 if hi.n == lo.n else (u.n - lo.n) / (hi.n - lo.n)
-            sub += study.reps * (c_lo + frac * (c_hi - c_lo))
+        sub = study.reps * float(np.sum(np.interp([u.n for u in us], *_costs(study, us))))
         total += sub
         echo(f"  {adapter:45s} {grid:17s} {dgp:13s} units={len(us):3d} est={sub / 60:6.1f} CPU-min")
     return total

@@ -2,12 +2,12 @@
 
 Methods: regression ``SplitPredictor`` with the ABS and CQR scores (the fixed model is
 wrapped as an identity torch module over precomputed predictions, float32), and
-classification ``SplitPredictor`` with LAC and APS (``randomized`` False and True) and
+classification ``SplitPredictor`` with LAC, APS (``randomized`` False and True) and RAPS
+(``penalty = 0.1``, ``kreg = 1``, ``randomized`` False and True), and
 ``ClassConditionalPredictor`` with LAC, driven through ``calculate_threshold`` /
 ``predict_with_logits`` on float32 log-probabilities. ``import torchcp`` pulls in
 torchsort, torch_geometric and transformers, which are not installed here: the adapter
-installs import stubs for the missing ones (docs/DESIGN.md, section 5.4). RAPS is not
-run in v0.1.
+installs import stubs for the missing ones (docs/DESIGN.md, section 5.4).
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from conformcheck.adapters.base import (
     MethodSpec,
     RegressionInput,
 )
+from conformcheck.reference import RAPS_KREG, RAPS_LAMBDA
 
 
 class _TorchCP(LibraryAdapter):
@@ -100,8 +101,8 @@ class TorchcpClassifier(_TorchCP):
             self.spec = MethodSpec(
                 "torchcp", "class_conditional", "default", "classification", law="class_conditional"
             )
-        elif score == "aps":
-            self.spec = MethodSpec("torchcp", "aps", f"randomized={randomized}", "classification")
+        elif score in ("aps", "raps"):
+            self.spec = MethodSpec("torchcp", score, f"randomized={randomized}", "classification")
         else:
             self.spec = MethodSpec("torchcp", "lac", "default", "classification")
 
@@ -109,13 +110,18 @@ class TorchcpClassifier(_TorchCP):
         self.setup()
         import torch
         from torchcp.classification.predictor import ClassConditionalPredictor, SplitPredictor
-        from torchcp.classification.score import APS, LAC
+        from torchcp.classification.score import APS, LAC, RAPS
 
         torch.manual_seed(data.seed)
         logit_cal = torch.log(torch.tensor(data.proba_cal, dtype=torch.float32))
         logit_test = torch.log(torch.tensor(data.proba_test, dtype=torch.float32))
         labels = torch.tensor(np.asarray(data.y_cal), dtype=torch.long)
-        score = LAC() if self.score == "lac" else APS(randomized=bool(self.randomized))
+        if self.score == "lac":
+            score = LAC()
+        elif self.score == "aps":
+            score = APS(randomized=bool(self.randomized))
+        else:
+            score = RAPS(randomized=bool(self.randomized), penalty=RAPS_LAMBDA, kreg=RAPS_KREG)
         cls = ClassConditionalPredictor if self.class_cond else SplitPredictor
 
         def one(a: Fraction) -> AlphaOutput:
@@ -134,5 +140,7 @@ def adapters() -> list[LibraryAdapter]:
         TorchcpClassifier("lac"),
         TorchcpClassifier("aps", randomized=False),
         TorchcpClassifier("aps", randomized=True),
+        TorchcpClassifier("raps", randomized=False),
+        TorchcpClassifier("raps", randomized=True),
         TorchcpClassifier("lac", class_cond=True),
     ]

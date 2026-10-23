@@ -27,6 +27,11 @@ from fractions import Fraction
 import numpy as np
 from numpy.typing import NDArray
 
+# Fixed RAPS regularisation used by the reference and by every library that takes it as
+# a parameter (puncc, TorchCP). MAPIE tunes its own (docs/DESIGN.md, section 5.1).
+RAPS_LAMBDA = 0.1
+RAPS_KREG = 1
+
 MUTANTS: tuple[str, ...] = (
     "k_minus_1",
     "k_plus_1",
@@ -247,6 +252,44 @@ def aps(
     scores = cal_all[np.arange(pc.shape[0]), np.asarray(y_cal)]
     q = conformal_threshold(scores, alpha)
     return _aps_scores(pt, u_test) <= q
+
+
+def _raps_scores(
+    proba: NDArray[np.float64], u: NDArray[np.float64] | None, lambd: float, k_reg: int
+) -> NDArray[np.float64]:
+    """RAPS score of every label: the APS score plus ``lambd * max(0, o - k_reg)``, with
+    ``o`` the 1-based rank of the label by decreasing probability (ties by label index)."""
+    p = np.asarray(proba, float)
+    order = np.argsort(-p, axis=1, kind="stable")
+    rank = np.empty_like(order)
+    np.put_along_axis(rank, order, np.broadcast_to(np.arange(1, p.shape[1] + 1), p.shape), axis=1)
+    return _aps_scores(p, u) + lambd * np.maximum(0, rank - k_reg)
+
+
+def raps(
+    proba_cal: NDArray[np.float64],
+    y_cal: NDArray[np.int64],
+    proba_test: NDArray[np.float64],
+    alpha: Fraction,
+    randomized: bool,
+    rng: np.random.Generator | None = None,
+    lambd: float = RAPS_LAMBDA,
+    k_reg: int = RAPS_KREG,
+) -> NDArray[np.bool_]:
+    """Regularized adaptive prediction sets (Angelopoulos, Bates, Malik and Jordan 2021)
+    with fixed ``lambd`` and ``k_reg``. Same structure as :func:`aps`: one uniform per
+    calibration and per test point when randomized; the set is every label whose score
+    is at most the ``k``-th smallest calibration score."""
+    if randomized and rng is None:
+        raise ValueError("randomized RAPS needs an rng")
+    pc = np.asarray(proba_cal, float)
+    pt = np.asarray(proba_test, float)
+    u_cal = rng.uniform(size=pc.shape[0]) if randomized else None  # type: ignore[union-attr]
+    u_test = rng.uniform(size=pt.shape[0]) if randomized else None  # type: ignore[union-attr]
+    cal_all = _raps_scores(pc, u_cal, lambd, k_reg)
+    scores = cal_all[np.arange(pc.shape[0]), np.asarray(y_cal)]
+    q = conformal_threshold(scores, alpha)
+    return _raps_scores(pt, u_test, lambd, k_reg) <= q
 
 
 def smoothed_lac(

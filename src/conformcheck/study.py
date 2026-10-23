@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import tomllib
 from dataclasses import asdict, dataclass, field
 from fractions import Fraction
@@ -28,12 +29,12 @@ from conformcheck.laws import CoverageLaw
 
 # Which methods run on which grid, per task of the grid's dgp.
 GRID_METHODS: dict[str, dict[str, tuple[str, ...]]] = {
-    "split": {"regression": ("split_abs", "cqr"), "classification": ("lac", "aps")},
+    "split": {"regression": ("split_abs", "cqr"), "classification": ("lac", "aps", "raps")},
     "tied": {"regression": ("split_abs",)},
     "jackknife_plus": {"regression": ("jackknife_plus",)},
     "cv_plus": {"regression": ("cv_plus",)},
     "class_conditional": {"classification": ("class_conditional",)},
-    "toy": {"regression": ("split_abs", "cqr"), "classification": ("lac", "aps")},
+    "toy": {"regression": ("split_abs", "cqr"), "classification": ("lac", "aps", "raps")},
 }
 
 
@@ -303,7 +304,21 @@ class CellLaw:
 
 # Deterministic APS scores have an atom at 1 (the true label ranked last), so ties occur
 # and only add coverage: these rows are tested one-sided (docs/DESIGN.md, section 6).
+# Deterministic RAPS scores have the same atoms (shifted by the rank penalty).
 DETERMINISTIC_APS = {"deterministic", "rand=False", "randomized=False"}
+APS_METHODS = ("aps", "raps")
+
+# MAPIE's RAPS holds out a stratified share of the conformalization data to tune lambda
+# and k_reg. RAPSConformityScore(size_raps=0.2) is documented, but in MAPIE 1.6.0
+# SplitConformalClassifier resets size_raps to None, so scikit-learn's
+# StratifiedShuffleSplit default test share 0.1 applies: ceil(0.1 * n) points (computed
+# in floating point, as scikit-learn does) are held out (REPORT.md, F9).
+MAPIE_RAPS_HOLDOUT = 0.1
+
+
+def mapie_raps_effective_n(n: int) -> int:
+    """Calibration size MAPIE 1.6.0 RAPS uses out of ``n`` conformalization points."""
+    return n - math.ceil(MAPIE_RAPS_HOLDOUT * n)
 
 
 def _class_conditional_law(n: int, alpha: Fraction, m: int, n_classes: int) -> CoverageLaw:
@@ -337,6 +352,19 @@ def cell_law(
     """The law a cell is tested against (docs/DESIGN.md, section 3.2.4)."""
     d = get_dgp(dgp)
     smoothed = variant == "smoothed"
+    if library == "mapie" and method == "raps":
+        n_eff = mapie_raps_effective_n(n)
+        k_eff = laws.split_index(n_eff, alpha)
+        if k_eff > n_eff:
+            return CellLaw("trivial", 1.0, None, k_eff, f"k={k_eff} > n_eff={n_eff}")
+        law = laws.split_count_law(n_eff, alpha, m)
+        return CellLaw(
+            "exact",
+            law.coverage,
+            law,
+            k_eff,
+            f"{law.description}; n_eff = n - ceil(0.1 n) = {n_eff} (internal tuning split)",
+        )
     k = laws.split_index(n, alpha)
     if smoothed:
         return CellLaw(
@@ -380,6 +408,6 @@ def cell_law(
         law = laws.discrete_count_law(n, alpha, m, d.score_pmf)
         return CellLaw("exact", law.coverage, law, k, law.description)
     law = laws.split_count_law(n, alpha, m)
-    one_sided = method == "aps" and variant in DETERMINISTIC_APS
+    one_sided = method in APS_METHODS and variant in DETERMINISTIC_APS
     desc = law.description + ("; one-sided (score atom at 1)" if one_sided else "")
     return CellLaw("exact", law.coverage, law, k, desc, one_sided)

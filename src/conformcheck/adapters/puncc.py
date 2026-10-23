@@ -1,7 +1,8 @@
 """puncc (deel-ai/puncc, MIT).
 
 Methods: SplitCP, CQR, CVPlus (K folds; K = n for jackknife+), LAC, APS (``rand`` False
-and True) and ClasswiseLAC. Levels are passed as ``alpha=0.1``. puncc draws its
+and True), RAPS (``lambd = 0.1``, ``k_reg = 1``, ``rand`` False and True) and
+ClasswiseLAC. Levels are passed as ``alpha=0.1``. puncc draws its
 randomization from the global ``numpy.random`` state, which the adapter seeds per
 repetition. puncc 0.9.3 pins numpy<2; this repository runs it under numpy 2 and
 re-checks every puncc finding under numpy<2 (docs/DESIGN.md, section 5.3).
@@ -27,6 +28,7 @@ from conformcheck.adapters.base import (
     MethodSpec,
     RegressionInput,
 )
+from conformcheck.reference import RAPS_KREG, RAPS_LAMBDA
 
 
 class _Puncc(LibraryAdapter):
@@ -144,7 +146,7 @@ class PunccClassifier(_Fitted):
     def __init__(self, method: str, rand: bool | None = None) -> None:
         self.method = method
         self.rand = rand
-        variant = f"rand={rand}" if method == "aps" else "default"
+        variant = f"rand={rand}" if method in ("aps", "raps") else "default"
         name = "class_conditional" if method == "classwise_lac" else method
         law = "class_conditional" if method == "classwise_lac" else "split"
         self.spec = MethodSpec("puncc", name, variant, "classification", law=law)
@@ -157,6 +159,10 @@ class PunccClassifier(_Fitted):
             cp = pc.LAC(predictor, train=False)
         elif self.method == "aps":
             cp = pc.APS(predictor, train=False, rand=bool(self.rand))
+        elif self.method == "raps":
+            cp = pc.RAPS(
+                predictor, train=False, lambd=RAPS_LAMBDA, k_reg=RAPS_KREG, rand=bool(self.rand)
+            )
         elif self.method == "classwise_lac":
             cp = pc.ClasswiseLAC(predictor, train=False)
         else:  # pragma: no cover - defensive
@@ -179,5 +185,7 @@ def adapters() -> list[LibraryAdapter]:
         PunccClassifier("lac"),
         PunccClassifier("aps", rand=False),
         PunccClassifier("aps", rand=True),
+        PunccClassifier("raps", rand=False),
+        PunccClassifier("raps", rand=True),
         PunccClassifier("classwise_lac"),
     ]

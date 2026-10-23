@@ -166,6 +166,7 @@ _DRAWERS = {
     "reg_hetero_t": _reg_hetero_t,
     "reg_tied": _reg_tied,
     "cls_gauss": _cls_gauss,
+    "cls_gauss_inf": _cls_gauss,
     "diabetes": _toy("diabetes"),
     "digits": _toy("digits"),
 }
@@ -226,6 +227,10 @@ def _model(name: str) -> object:
         return ConstantRegressor(0.0).fit(np.zeros((1, 2)))
     if name == "cls_gauss":
         return FixedClassifier(temperature=2.0)
+    if name == "cls_gauss_inf":
+        # the Bayes posterior of the four unit-variance Gaussians with equal priors:
+        # logits mu_c . x - |mu_c|^2 / 2 (informative, top-1 accuracy about 0.71)
+        return FixedClassifier(weights=CLS_MEANS.T.copy(), bias=-0.5 * np.sum(CLS_MEANS**2, axis=1))
     if name in ("diabetes", "digits"):
         return _toy_model(name)
     raise ValueError(f"unknown dgp {name!r}")
@@ -260,6 +265,12 @@ DGPS: dict[str, DGP] = {
     "reg_tied": DGP("reg_tied", "regression", description="Y uniform on {-3..3}"),
     "reg_constant": DGP("reg_constant", "regression", description="reg_gauss, constant model"),
     "cls_gauss": DGP("cls_gauss", "classification", n_classes=4, description="4 Gaussians"),
+    "cls_gauss_inf": DGP(
+        "cls_gauss_inf",
+        "classification",
+        n_classes=4,
+        description="4 Gaussians, Bayes-posterior (informative) classifier",
+    ),
     "diabetes": DGP("diabetes", "regression", pool_size=342, description="sklearn diabetes"),
     "digits": DGP(
         "digits", "classification", n_classes=10, pool_size=1297, description="sklearn digits"

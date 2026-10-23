@@ -112,7 +112,27 @@ def test_regression_ranks_cqr_and_bracket() -> None:
     assert diagnostics.regression_ranks("lac", "", iv, y) is None
     cal = np.array([0.1, 0.2, 0.3, 0.4])
     br = diagnostics.bracket_rank(cal, np.array([[0.15, 0.35]]), np.array([[True, False]]))
-    assert br is not None and br.k_lo <= 1 <= br.k_hi
+    # 0.15 included and 0.35 excluded: the threshold is s_(2) = 0.2 or s_(3) = 0.3
+    assert br == diagnostics.RankRange(2, 3)
+    assert diagnostics.bracket_offset(br, 1) == 1 and diagnostics.bracket_offset(br, 4) == -1
+
+
+def test_bracket_rank_detects_both_directions() -> None:
+    cal = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    test = np.array([0.05, 0.15, 0.25, 0.35, 0.45, 0.55])
+    for j in range(1, 6):  # threshold at s_(j): every test score <= s_(j) is included
+        br = diagnostics.bracket_rank(cal, test, test <= cal[j - 1])
+        assert br is not None and diagnostics.bracket_offset(br, j) == 0
+        if j > 1:
+            assert diagnostics.bracket_offset(br, j - 1) == 1  # library used k + 1
+        if j < 5:
+            assert diagnostics.bracket_offset(br, j + 1) == -1  # library used k - 1
+    full = diagnostics.bracket_rank(cal, test, np.ones(6, bool))
+    assert full == diagnostics.RankRange(6, 6)  # everything included: q >= 0.55
+    empty = diagnostics.bracket_rank(cal, test, np.zeros(6, bool))
+    assert empty == diagnostics.RankRange(0, 0)  # nothing included: q < 0.05
+    mixed = diagnostics.bracket_rank(cal, test, np.array([1, 0, 1, 0, 0, 0], bool))
+    assert mixed is not None and diagnostics.bracket_offset(mixed, 2) is None
 
 
 def test_is_trivial_and_compare() -> None:

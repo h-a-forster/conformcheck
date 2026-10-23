@@ -49,11 +49,15 @@ DOCUMENTED: dict[str, str] = {
     "mapie/aps/include_last_label=True": (
         "MAPIE documents include_last_label=True as conservative"
     ),
+    "mapie/raps/include_last_label=True": (
+        "MAPIE documents include_last_label=True as conservative"
+    ),
 }
 # The statuses each documented row is excused for. Any other status of that row (a
 # crash, a refused feasible level) still counts towards the headline.
 DOCUMENTED_STATUSES: dict[str, frozenset[str]] = {
     "mapie/aps/include_last_label=True": frozenset({"CONSERVATIVE"}),
+    "mapie/raps/include_last_label=True": frozenset({"CONSERVATIVE"}),
 }
 
 
@@ -97,6 +101,7 @@ class Cell:
     rank_pairs: dict[str, int] = field(default_factory=dict)
     rank_interp: int = 0
     bracket_offsets: dict[str, int] = field(default_factory=dict)
+    effective_n: dict[str, int] = field(default_factory=dict)
     diff_max: float | None = None
     nontrivial: int = 0
     mde: float | None = None
@@ -154,16 +159,22 @@ def _record_order(rec: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
-def _rank_status(offsets: dict[str, int]) -> tuple[str, str]:
-    """Deterministic status from the per-repetition order-statistic offsets."""
-    below = {float(k): v for k, v in offsets.items() if float(k) < 0}
-    above = {float(k): v for k, v in offsets.items() if float(k) > 0}
+def _rank_status(offsets: dict[str, int], what: str = "rank") -> tuple[str, str]:
+    """Deterministic status from the per-repetition order-statistic offsets.
+
+    ``what`` names the diagnostic in the reason (``rank``: read off an interval;
+    ``bracket``: bracketed by included and excluded set scores). Keys that are not
+    numbers (``"nt"``: not a threshold set) carry no offset and are ignored.
+    """
+    num = {float(k): v for k, v in offsets.items() if k != "nt"}
+    below = {k: v for k, v in num.items() if k < 0}
+    above = {k: v for k, v in num.items() if k > 0}
     if below:
         worst_off = min(below)
-        return "FAIL", f"rank {worst_off:+g} in {sum(below.values())} reps"
+        return "FAIL", f"{what} {worst_off:+g} in {sum(below.values())} reps"
     if above:
         top = max(above, key=lambda o: above[o])
-        return "CONSERVATIVE", f"rank {top:+g} in {sum(above.values())} reps"
+        return "CONSERVATIVE", f"{what} {top:+g} in {sum(above.values())} reps"
     return "PASS", ""
 
 
@@ -207,6 +218,7 @@ def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
                 rank_pairs=ao.get("rank_pairs", {}),
                 rank_interp=ao.get("rank_interp", 0),
                 bracket_offsets=ao.get("bracket_offsets", {}),
+                effective_n=ao.get("effective_n", {}),
                 diff_max=ao.get("diff_max"),
                 nontrivial=ao.get("nontrivial", 0),
                 message=ao.get("message", ""),
@@ -228,6 +240,8 @@ def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
                 c.det_status, c.reason = "FAIL", f"finite set when k > n in {c.nontrivial} reps"
             else:
                 c.det_status, c.reason = _rank_status(c.rank_offsets)
+                if c.det_status == "PASS":
+                    c.det_status, c.reason = _rank_status(c.bracket_offsets, "bracket")
             if counts.size:
                 # empirical t interval: the law's variance holds only under the null
                 c.coverage, c.ci_low, c.ci_high = stats.coverage_interval(counts, c.m)
@@ -403,8 +417,8 @@ def controls_summary(cells: list[Cell]) -> dict[str, Any]:
         "reference_exact_mean_rejection_rate": (raw / len(exact_p)) if exact_p else None,
     }
     power: dict[str, dict[str, Any]] = {}
-    for mut in MUTANTS:
-        cs = [c for c in ref if c.variant == mut and c.law_kind != "trivial"]
+    for method, mut in [(m, x) for m in ("split_abs", "lac") for x in MUTANTS]:
+        cs = [c for c in ref if c.variant == mut and c.method == method and c.law_kind != "trivial"]
         if not cs:
             continue
         per_n: dict[int, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
@@ -416,7 +430,7 @@ def controls_summary(cells: list[Cell]) -> dict[str, Any]:
             v[0] += 1
             v[1] += c.stat_status != "PASS"
             v[2] += c.status != "PASS"
-        power[mut] = {
+        power[f"{method}/{mut}"] = {
             str(n): {
                 "cells": v[0],
                 "stat_detected": v[1],
@@ -450,6 +464,7 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
             d["rank_offsets"] = json.dumps(d["rank_offsets"], sort_keys=True)
             d["rank_pairs"] = json.dumps(d["rank_pairs"], sort_keys=True)
             d["bracket_offsets"] = json.dumps(d["bracket_offsets"], sort_keys=True)
+            d["effective_n"] = json.dumps(d["effective_n"], sort_keys=True)
             d["warnings"] = " | ".join(d["warnings"])
             w.writerow(d)
     lib_rows = [r for r in rows if r.library != "reference"]
@@ -496,6 +511,14 @@ def headline_counts(lib_rows: list[RowSummary]) -> dict[str, Any]:
     }
 
 
+def _offsets_label(c: Cell) -> str:
+    if c.rank_pairs:
+        return json.dumps(c.rank_pairs)
+    if any(k != "0" for k in c.bracket_offsets):
+        return "bracket " + json.dumps(c.bracket_offsets, sort_keys=True)
+    return ""
+
+
 def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[str, Any]) -> str:
     study = payload["study"]
     lines = [
@@ -540,7 +563,7 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
         "## Non-PASS cells (libraries)",
         "",
         "| row | dgp | n | alpha | k | status | coverage [95% CI] | target | "
-        "rank offsets lower|upper (reps) | "
+        "rank offsets lower|upper or bracket (reps) | "
         "Holm p | reason |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
@@ -551,7 +574,7 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
         cov = f"{_fmt(c.coverage)} [{_fmt(c.ci_low)}, {_fmt(c.ci_high)}]" if c.coverage else ""
         lines.append(
             f"| `{c.row}` | {c.dgp} | {c.n} | {_alpha_label(c.alpha)} | {c.k} | {c.status} | "
-            f"{cov} | {c.target:.4f} | {json.dumps(c.rank_pairs) if c.rank_pairs else ''} | "
+            f"{cov} | {c.target:.4f} | {_offsets_label(c)} | "
             f"{'' if c.p_holm is None else f'{c.p_holm:.2g}'} | "
             f"{(c.reason + ' ' + c.message[:80]).strip()} |"
         )
@@ -591,8 +614,9 @@ def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[s
             for k, val in ctl["size"].items()
         ),
         "",
-        "Power (mutants; statistical detections / cells per n, deterministic included in "
-        "'any'; cells where the mutant uses the correct order statistic are excluded):",
+        "Power (mutants of split regression and LAC; statistical detections / cells per n, "
+        "deterministic rank recovery or bracketing included in 'any'; cells where the mutant "
+        "uses the correct order statistic are excluded):",
         "",
     ]
     for mut, per_n in ctl["power"].items():

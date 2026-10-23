@@ -8,8 +8,10 @@
 * :func:`regression_ranks`: per method, how the threshold is read off the returned
   intervals and which calibration scores it is compared with (split absolute residual,
   symmetric and asymmetric CQR, jackknife+ / CV+ with the constant model).
-* :func:`bracket_rank`: for LAC the largest included and smallest excluded test score
-  bracket the threshold, which gives a range for the order statistic (diagnostic only).
+* :func:`bracket_rank`: for LAC-type scores (LAC, crepes hinge, Mondrian LAC per class)
+  the largest included and smallest excluded test score bracket the threshold, which
+  gives a range for the order statistic. Over many test labels and repetitions this
+  detects a one-step error at any ``n`` (rank recovery for classification).
 * :func:`is_trivial`: when ``k > n`` every interval must be infinite and every set full.
 * :func:`compare_to_reference`: maximum endpoint difference or set disagreement rate.
 """
@@ -167,25 +169,48 @@ def bracket_rank(
 ) -> RankRange | None:
     """Range of order statistics consistent with a set-valued output (LAC-type scores).
 
-    The threshold ``q`` satisfies ``max included <= q < min excluded``. A correct method
-    uses ``s_(k)``, so ``#{s <= a} <= k <= #{s < b}`` with ``a`` the largest included and
-    ``b`` the smallest excluded test score. Returns None when every set is full or empty.
+    A threshold set is ``{y : score_y <= q}``, so ``a <= q < b`` with ``a`` the largest
+    included and ``b`` the smallest excluded test score. A method that uses ``s_(j)`` is
+    consistent when ``a <= s_(j) < b``, i.e. ``#{s < a} + 1 <= j <= #{s < b}``; both
+    ends are widened by the tolerance (float32 libraries). ``j = 0`` (nothing included)
+    and ``j = n + 1`` (everything included) are the infinite thresholds.
+
+    Returns None when there are no test scores. When the sets are not threshold sets of
+    these scores (``a > b`` beyond the tolerance, e.g. a randomized rule) the returned
+    range is empty (``k_lo > k_hi``); callers must not read an offset from it.
     """
     ts = np.asarray(test_scores, dtype=float)
     st = np.asarray(sets, dtype=bool)
     s = np.asarray(cal_scores, dtype=float)
     inc = ts[st]
     exc = ts[~st]
-    if inc.size == 0 and exc.size == 0:  # pragma: no cover - defensive
+    if inc.size == 0 and exc.size == 0:
         return None
     a = float(inc.max()) if inc.size else -math.inf
     b = float(exc.min()) if exc.size else math.inf
-    tol = REL_TOL * max(1.0, abs(a) if math.isfinite(a) else 1.0)
-    k_lo = int(np.sum(s <= a - tol)) if math.isfinite(a) else 0
-    k_hi = int(np.sum(s < b + tol)) if math.isfinite(b) else s.size + 1
-    if not math.isfinite(b):
-        return RankRange(max(k_lo, 1), s.size + 1)
+    if math.isfinite(a):
+        tol_a = REL_TOL * max(1.0, abs(a))
+        k_lo = int(np.sum(s < a - tol_a)) + 1
+    else:
+        k_lo = 0
+    if math.isfinite(b):
+        tol_b = REL_TOL * max(1.0, abs(b))
+        k_hi = int(np.sum(s < b + tol_b))
+        if math.isfinite(a) and a > b + max(tol_a, tol_b):
+            return RankRange(1, 0)  # not a threshold set of these scores
+    else:
+        k_hi = s.size + 1
     return RankRange(k_lo, k_hi)
+
+
+def bracket_offset(br: RankRange, k: int) -> int | None:
+    """Order-statistic offset of a bracket (see :meth:`RankRange.offset`); None when the
+    sets are not threshold sets (empty range)."""
+    if br.interpolated:
+        return None
+    if br.k_lo <= k <= br.k_hi:
+        return 0
+    return br.k_lo - k if k < br.k_lo else br.k_hi - k
 
 
 def is_trivial(intervals: NDArray[np.float64] | None, sets: NDArray[np.bool_] | None) -> bool:

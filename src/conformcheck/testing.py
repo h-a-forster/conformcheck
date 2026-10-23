@@ -12,7 +12,9 @@ Example::
 
 ``check_split_classifier`` is the classification analogue: the callable receives
 ``(x_cal, y_cal, x_test, alpha, model)`` with a fixed 4-class softmax model (it has
-``predict_proba``) and returns a boolean ``(m, 4)`` set matrix.
+``predict_proba``) and returns a boolean ``(m, 4)`` set matrix. With ``score="lac"`` it
+also brackets the order statistic between the largest included and smallest excluded
+``1 - p`` test score (deterministic, any ``n``).
 
 Each (n, alpha) cell runs ``reps`` independent calibration draws from the built-in
 DGPs (``reg_gauss``, ``cls_gauss``). Regression cells can also get rank recovery (the
@@ -41,6 +43,8 @@ RegressorFn = Callable[..., np.ndarray]
 ClassifierFn = Callable[..., np.ndarray]
 Score = Literal["auto", "abs", "other"]
 SCORES = ("auto", "abs", "other")
+SetScore = Literal["lac", "other"]
+SET_SCORES = ("lac", "other")
 
 
 @dataclass
@@ -215,8 +219,18 @@ def check_split_classifier(
     test_points: int | None = None,
     seed: int | None = None,
     fwer: float = 0.05,
+    score: SetScore = "other",
 ) -> ConformanceReport:
-    """Check a split-conformal classification callable (boolean ``(m, 4)`` sets)."""
+    """Check a split-conformal classification callable (boolean ``(m, 4)`` sets).
+
+    ``score="lac"`` declares that the sets are ``{y : 1 - p_y <= q}`` (LAC, or any method
+    thresholding that score). Each repetition then also brackets the order statistic
+    used, which detects a one-step error at any ``n``; a repetition whose sets are not
+    threshold sets of ``1 - p_y`` is a ``FAIL`` ("not a threshold set"). The default
+    ``"other"`` runs the statistical tests only, which suit any score (APS, RAPS, ...).
+    """
+    if score not in SET_SCORES:
+        raise ValueError(f"score must be one of {SET_SCORES}, got {score!r}")
     reps, m, seed = _settings(reps, test_points, seed)
     dgp = get_dgp("cls_gauss")
     model = dgp.model()
@@ -225,7 +239,7 @@ def check_split_classifier(
         for a_raw in _as_tuple(alpha):
             a = laws.as_fraction(a_raw)
             k = laws.split_index(nn, a)
-            counts, nontrivial = [], 0
+            counts, nontrivial, offsets, not_threshold = [], 0, {}, 0
             for rep in range(reps):
                 d = dgp.draw(
                     np.random.default_rng(rep_seed_sequence(seed, "check", nn, rep)), nn, m
@@ -237,7 +251,23 @@ def check_split_classifier(
                     )
                 counts.append(int(sets[np.arange(m), d.y_test].sum()))
                 nontrivial += k > nn and not diagnostics.is_trivial(None, sets)
-            cells.append(_cell(nn, a, k, np.array(counts), m, {}, nontrivial))
+                if score != "lac" or k > nn:
+                    continue
+                p_cal = model.predict_proba(d.x_cal)
+                cal_scores = 1.0 - p_cal[np.arange(nn), d.y_cal]
+                br = diagnostics.bracket_rank(cal_scores, 1.0 - model.predict_proba(d.x_test), sets)
+                if br is None:
+                    continue
+                off = diagnostics.bracket_offset(br, k)
+                if off is None:
+                    not_threshold += 1
+                else:
+                    offsets[off] = offsets.get(off, 0) + 1
+            cell = _cell(nn, a, k, np.array(counts), m, offsets, nontrivial)
+            if not_threshold:
+                cell.status = "FAIL"
+                cell.detail = f"not a threshold set of 1 - p in {not_threshold} reps"
+            cells.append(cell)
     return _finish("check_split_classifier", cells, reps, m, fwer)
 
 
