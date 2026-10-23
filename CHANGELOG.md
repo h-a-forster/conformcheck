@@ -5,7 +5,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- RAPS rows: MAPIE (`include_last_label` True and `"randomized"`, tested against the
+  effective calibration size MAPIE uses), puncc and TorchCP (fixed `lambda = 0.1`,
+  `k_reg = 1`, deterministic and randomized), and reference RAPS implementations.
+- Bracketing is now rank recovery for classification: a deterministic status for LAC
+  and class-conditional LAC (per class), so one-step errors are detected at any `n`.
+- `check_split_classifier(score="lac")` brackets the order statistic.
+- DGP `cls_gauss_inf`: the `cls_gauss` Gaussians with the Bayes-posterior classifier.
+- `scripts/raps_neff.py`: tests MAPIE RAPS against candidate calibration sizes.
+- `conformcheck plan` probes the middle `n` of each group as well.
+- Round-2 study results (`docs/results/default/`), REPORT.md findings F9 and F10.
+
 ### Fixed
+
+- `diagnostics.bracket_rank` returned a lower end one too low (`#{s <= a}` instead of
+  `#{s < a} + 1`), which hid positive offsets. Bracketing was diagnostic only before, so
+  no published status depended on it.
 
 - Coverage intervals in reports are t intervals from the empirical spread of the counts.
   They used the variance of the exact (null) law, which is the wrong spread in the

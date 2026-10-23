@@ -18,28 +18,31 @@ level or crashes. Every finding comes with a standalone repro script.
 It covers [MAPIE](https://github.com/scikit-learn-contrib/MAPIE),
 [crepes](https://github.com/henrikbostrom/crepes), [puncc](https://github.com/deel-ai/puncc)
 and [TorchCP](https://github.com/ml-stat-Sustech/TorchCP) (CPU): split regression, CQR,
-jackknife+ and CV+, LAC, APS (randomized and not) and class-conditional sets, 31
-library-method rows in all.
+jackknife+ and CV+, LAC, APS and RAPS (randomized and not) and class-conditional sets,
+37 library-method rows in all.
 
 ## Results of the default study
 
 The default study ran MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3 and TorchCP 1.2.1. It used
-R = 200 calibration draws × 500 test points per cell and 3058 statistical cells, with
-Holm FWER 0.05. **15 of the 31 library-method rows are flagged at n <= 100.** Only one
+R = 200 calibration draws × 500 test points per cell and 4348 statistical cells, with
+Holm FWER 0.05. **18 of the 37 library-method rows are flagged at n <= 100.** Only one
 row under-covers: MAPIE APS with `include_last_label=False`, whose coverage follows the
-model rather than the law (far below target with an anti-informative synthetic
-classifier, far above it on digits). The other flags are over-coverage by one order
-statistic, MAPIE's documented conservatism of `include_last_label=True`, refusals of a
-level where a valid set exists, and crashes. The reference rows produced 0 false alarms.
-Details, intervals and limitations are in [REPORT.md](REPORT.md).
+model rather than the law (below target with both synthetic classifiers, above it on
+digits). The other flags are over-coverage by one order statistic, a randomized RAPS set
+rule that does not match its own score, MAPIE's documented conservatism of
+`include_last_label=True`, refusals of a level where a valid set exists, and crashes.
+The reference rows produced 0 false alarms. Details, intervals and limitations are in
+[REPORT.md](REPORT.md).
 
 | Finding | Kind | Size |
 |---|---|---|
-| MAPIE APS `include_last_label=False` | coverage set by the model, not the law | about 0.55 at a 0.90 target on synthetic data (under), about 0.97 on digits (over), every n |
+| MAPIE APS `include_last_label=False` | coverage set by the model, not the law | at a 0.90 target: about 0.55 and 0.79 on two synthetic models (under), about 0.97 on digits (over), every n |
 | crepes split regression and unsmoothed LAC | k + 1 at integer `(n+1) alpha` (float `1 - 0.9`) | 0.949 vs 0.900 at n = 19 |
 | MAPIE split, LAC, APS, symmetric CQR | refuse feasible `alpha` in `[1/(n+1), 1/n)` | every n |
 | MAPIE asymmetric CQR | refuses when `n < 2/alpha` although `k' <= n` | n = 9, alpha = 0.2; n = 19, alpha = 0.1 |
 | MAPIE CV+ (K = 5, 10) | lower endpoint uses k + 1 at n = 999, alpha = 0.05 | found by rank recovery |
+| MAPIE RAPS | ignores `size_raps` (holds out ceil(0.1 n), not 0.2 n); raises at n <= 20 with 4 classes | exact at the effective size where it runs |
+| puncc randomized RAPS | set rule does not match puncc's own score | 0.990 and 0.917 vs 0.900 on two synthetic models |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
 
@@ -47,16 +50,18 @@ An excerpt of the matrix (worst status over the DGPs and alphas at each n):
 
 ```text
 row                                    n=5  9   10  19  20  49  50  99  100 999 1000
-mapie/aps/include_last_label=False     E    E   F   F   F   F   F   F   F   F   F
+mapie/aps/include_last_label=False     E    E   E   F   F   F   F   F   F   F   F
 mapie/split_abs/default                O    O   O   O   O   O   O   O   O   O   O
 crepes/split_abs/default               C    C   P   C   P   C   P   C   P   C   C
 crepes/lac/smoothed                    P    P   P   P   P   P   P   P   P   P   P
+crepes/lac/unsmoothed                  C    C   P   C   P   C   P   C   P   C   C
+puncc/raps/rand=True                   C    L   C   C   L   C   C   C   C   C   C
 puncc/split_abs/default                R    R   R   R   R   R   R   R   R   R   R
 torchcp/lac/default                    P    P   P   P   P   P   P   P   P   P   P
 reference/split_abs/default            P    P   P   P   P   P   P   P   P   P   P
 reference/split_abs/k_minus_1          F    F   F   F   F   F   F   F   F   F   F
 
-P pass  C conservative  F fail  O refuses a feasible level  R refuses only k > n  E error
+P pass  C conservative  F fail  L law mismatch  O refuses a feasible level  R refuses only k > n  E error
 ```
 
 Each finding has a standalone repro under
@@ -70,7 +75,10 @@ Each finding has a standalone repro under
   denotes (`0.1` is 1/10), so the oracle has no floating-point rounding of its own.
 - **Rank recovery** (deterministic): for regression, the order statistic a library used
   is read off each endpoint of the interval it returns. This detects an off-by-one at
-  any `n`, including `n = 1000`, where Monte Carlo has no power.
+  any `n`, including `n = 1000`, where Monte Carlo has no power. For threshold sets (LAC,
+  class-conditional LAC), bracketing does the same: the threshold lies between the
+  largest included and the smallest excluded test score, which pins down a range of
+  calibration order statistics.
 - **Statistical tests**: an exact test of the summed covered counts (FFT convolution of
   the law) plus a chi-square goodness-of-fit test per cell, Holm across all cells
   (FWER 0.05), Benjamini-Yekutieli reported alongside.
@@ -130,7 +138,8 @@ Rank recovery assumes the absolute-residual score. By default (`score="auto"`) i
 applied only to intervals of that shape; pass `score="other"` for a different score
 (for example a normalised residual), which then gets the statistical test alone, or
 `score="abs"` to force it. `check_split_classifier` does the same for set-valued
-classifiers. Under pytest,
+classifiers; pass `score="lac"` to bracket the order statistic of `1 - p` threshold
+sets. Under pytest,
 `--conformcheck-reps` and `--conformcheck-seed` change the defaults. A failing check
 reads like this (a deliberate `k - 1` bug):
 
@@ -150,7 +159,8 @@ uv run conformcheck repro runs/default --verify # standalone repro per finding
 ```
 
 `runs/<name>/progress.log` shows progress; rerunning the same command resumes from the
-last finished unit. `--study smoke` runs in under a minute; `--study full` (R=2000,
+last finished unit. The default study takes about an hour from scratch with 3 workers.
+`--study smoke` runs in under a minute; `--study full` (R=2000,
 m=1000) takes hours.
 
 ## Validating the oracle

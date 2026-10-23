@@ -19,7 +19,7 @@ edge_alphas = true
 
 [grids.split]          # split regression, CQR and all split classification methods
 n = [5, 9, 10, 19, 20, 49, 50, 99, 100, 999, 1000]
-dgps = ["reg_gauss", "reg_hetero_t", "cls_gauss"]   # each method uses the dgps of its task
+dgps = ["reg_gauss", "reg_hetero_t", "cls_gauss", "cls_gauss_inf"]   # each method uses the dgps of its task
 
 [grids.tied]           # exact discrete law; split absolute residual only
 n = [5, 9, 10, 19, 20, 49, 50, 99, 100]

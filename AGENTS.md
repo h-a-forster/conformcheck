@@ -24,7 +24,7 @@ standalone repros, plus a pytest plugin.
   (`laws.as_fraction`). Never compute `k` from floats in oracle code.
 - Adapters call public APIs only, pass levels as a user would type them, and never
   reimplement the method (`adapters/base.py` docstring).
-- No model or LLM API calls. CPU only. At most 4 worker processes.
+- No model or LLM API calls. CPU only. At most 4 worker processes (round 2 used 3).
 - Long runs checkpoint each unit to `runs/<name>/units.jsonl` and skip finished units
   on rerun; progress goes to `runs/<name>/progress.log`.
 - Scratch work goes in `tmp/` (gitignored). Large or raw outputs stay in `runs/` or
@@ -59,6 +59,7 @@ src/conformcheck/
   cli.py            conformcheck libraries | plan | run | report | repro                   [done]
   studies/          smoke.toml, default.toml, full.toml
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
+scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
 tests/              laws, stats, reference, adapters, pipeline, testing API, controls
 REPORT.md           default study findings; docs/results/default/ holds its outputs
 docs/DESIGN.md      the spec
@@ -77,7 +78,7 @@ uv run ruff check . && uv run ruff format --check .
 
 ```sh
 uv run conformcheck plan --study default                                  # units + time estimate
-uv run python scripts/run_study.py --study default --out runs/default     # about 25 to 40 min, 4 workers
+uv run python scripts/run_study.py --study default --out runs/default     # about 1 h from scratch, 3 workers
 uv run conformcheck report runs/default
 uv run conformcheck repro runs/default --verify
 # Full size (hours, resumable):
@@ -88,67 +89,61 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-23): **M0 to M8 done; v0.1.0 prepared (not tagged, not pushed).**
+Status (2026-10-24): **round 2 done (RAPS, classification bracketing, informative
+classifier); not tagged, not pushed.**
 
-- The default study finished: 984 units, 45.2 min with 4 workers, plus 2.4 min
-  re-running the 61 TorchCP regression units after the rank-tolerance fix. The plan
-  estimated 20 min, so treat `plan` as a lower bound.
-- Results are in `docs/results/default/`: the matrix, summary, cells.csv, gzipped
-  units and verified repros. `REPORT.md` has the findings, the verdicts on the
-  hypotheses and the limitations.
-- Every library repro exits 1 under `conformcheck repro --verify`. The puncc repros
-  were re-checked under `numpy<2` (`repros/puncc_numpy1_recheck.txt`).
-- Oracle controls: the reference rows have 0 Holm rejections and 0 non-PASS cells.
-  The exact mean test rejects in 19 of 402 cells (4.7%), reported as a count only (the
-  cells share draws). The mutants are caught as shown in REPORT section 3.
-- RAPS was cut from v0.1 (DESIGN section 2).
-- Review fixes (2026-10-23, after v0.1.0 was prepared; see CHANGELOG "Unreleased"):
-  empirical coverage intervals; headline excuses only documented statuses (now 15 of
-  31 rows); F1 rewritten (digits over-covers, synthetic classifier is
-  anti-informative, hypothesis 3 partly refuted); size check without a p-value;
-  `check_split_regressor(score=...)`; `LAW_MISMATCH` in `testing`; study TOML
-  validation with exit 2; missing libraries never checkpointed (`--allow-missing`);
-  report memoisation. The report files in `docs/results/default/` were rebuilt from
-  the committed `units.jsonl.gz`; no library unit was re-run, and no status or p-value
-  changed.
+- Round 2 run: `runs/default-r2` (gitignored), fingerprint `cbfed0fa569dc01f`. It was
+  seeded with the 779 unaffected v0.1 units (unit ids depend only on unit, R, m, seed),
+  then 325 LAC/class-conditional/RAPS units (18.0 min, 3 workers) and 308
+  `cls_gauss_inf` units (8.6 min). Total 1412 units. The 205 re-run v0.1 units
+  reproduced their counts exactly.
+- Results in `docs/results/default/` (matrix, summary, cells.csv, units.jsonl.gz,
+  repros, `raps_neff.md`). REPORT.md has F1-F10, hypotheses 1-10 and limitations.
+- Headline: 18 of 37 rows flagged at n <= 100. New: F9 (MAPIE RAPS ignores
+  `size_raps`, holds out ceil(0.1 n), raises at small n), F10 (puncc randomized RAPS set
+  rule does not match its score; over-coverage). F1 extended: MAPIE APS `False`
+  under-covers on the Bayes classifier too (hypothesis 8 refuted).
+- Oracle controls: 0 Holm rejections in 1010 reference statistical cells, 0 non-PASS in
+  1329 reference cells; exact mean test rejects 20 of 562 (3.6%, descriptive).
+- Bracketing is now a deterministic status for LAC and class-conditional LAC and catches
+  every LAC mutant cell at n = 999/1000. v0.1's `bracket_rank` had a lower-end bug that
+  hid positive offsets (fixed, CHANGELOG).
 
 Notes for whoever continues:
 
 - Rank tolerance is `1e-6 * max(1, |q|, scale)`, where scale is the magnitude of the
   endpoints. Float32 libraries need the scale term (`diagnostics.py`).
-- The oracle's size check counts rejections of the exact two-sided mean test. It is
-  descriptive: alphas of a unit and reference rows on a dgp share draws, so do not put
-  a binomial or KS p-value on it. Do not KS-test the combined cell p-values either; they
-  are conservative by construction.
-- Coverage intervals are empirical t intervals. The law's variance is the null variance:
-  use it only for the MDE and the normal cross-check.
+- Bracketing (`diagnostics.bracket_rank`): with `a` the largest included and `b` the
+  smallest excluded test score, consistent order statistics are
+  `#{s < a} + 1 .. #{s < b}`. `RankRange(1, 0)` (`"nt"` in records) means the sets are
+  not threshold sets; it is FAIL in `testing` and ignored in the report's rank status.
+  It runs only for `runner.BRACKET_METHODS` on exact-law, non-smoothed cells.
+- APS/RAPS have no rank recovery: deterministic rules differ by convention, randomized
+  ones draw uniforms inside the library.
+- MAPIE RAPS: `size_raps` is reset to None by `SplitConformalClassifier`, so the hold-out
+  is ceil(0.1 n) (`study.mapie_raps_effective_n`). The adapter records MAPIE's
+  `n_samples_` per rep as `effective_n`. If MAPIE fixes this, the cell law must change.
+- RAPS parameters are fixed at lambda = 0.1, k_reg = 1 (`reference.RAPS_LAMBDA/KREG`).
+- The size check counts rejections of the exact two-sided mean test. It is descriptive:
+  alphas of a unit and reference rows on a dgp share draws. No binomial/KS p-value.
+- Coverage intervals are empirical t intervals; the law's variance is for the MDE only.
 - A documented row is excused only for the statuses in `report.DOCUMENTED_STATUSES`.
-- The `cls_gauss` classifier is anti-informative (top-1 accuracy 0.119). Laws hold for
-  any fixed model, but effect sizes of model-dependent findings (F1) are extreme on it.
+- `cls_gauss` is anti-informative (top-1 0.118); `cls_gauss_inf` uses the Bayes
+  posterior (top-1 0.708). Laws hold for any fixed model; effect sizes do not.
 - `conformcheck run` refuses to start when a needed library is missing; use
-  `--libraries` or `--allow-missing`. Missing units are listed in `run.json`, never
-  written to `units.jsonl`.
+  `--libraries` or `--allow-missing`. A changed study config needs `--force` (the
+  fingerprint guards it; finished units are still reused by id).
+- `conformcheck plan` probes smallest, middle and largest n; still treat it as a rough
+  estimate.
 - `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
-  message. An unexpected crash in a repro exits 2, never 1.
-- `conformcheck report` takes about 15 s on the default run. Laws and convolution powers
-  are memoised (`stats.cached_convolution_power`, bounded at 512 MB).
+  message. An unexpected crash exits 2, never 1. Hand-written repros are prefixed
+  `manual__`.
 
-Open items from the review (not done):
+Open items (not done):
 
-- No synthetic DGP with an informative classifier. Adding one (for example weights
-  aligned with `CLS_MEANS`) and re-running the APS units would show F1 on two synthetic
-  models; it changes the study fingerprint, so it needs a fresh run directory.
-- CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled in the
-  cell description and REPORT section 7); restricting them to n divisible by K would
-  change the default grid.
-- The repro scripts were not regenerated; they do not depend on the changed code.
-
-Next (not started):
-
+- ACI / EnbPI (time series): not started.
 - The `full` study (R = 2000, m = 1000; hours; resumable).
-- RAPS rows.
-- Rank recovery for classification (currently statistical only, so classifiers have
-  low power at n >= 100).
-- Probe a mid-range n in `plan`.
-- First CI run, once the repository is pushed (needs the owner's go-ahead).
+- CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled).
+- puncc PASS cells were not re-checked under `numpy<2` (only its findings were).
+- First CI run, once the repository is pushed (owner's go-ahead).
 - Report the findings upstream (owner's decision).
