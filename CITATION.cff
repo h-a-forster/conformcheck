@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use conformcheck, please cite it as below."
+title: conformcheck
+abstract: >-
+  Finite-sample coverage certification for Python conformal-prediction libraries,
+  tested against exact distribution-free laws.
+type: software
+authors:
+  - name: conformcheck contributors
+repository-code: "https://github.com/h-a-forster/conformcheck"
+license: MIT
+version: 0.1.0.dev0

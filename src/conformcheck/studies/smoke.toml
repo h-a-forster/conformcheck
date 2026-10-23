@@ -1,0 +1,24 @@
+# Seconds-long smoke study used by the test suite and CI. Not a result.
+
+name = "smoke"
+seed = 1
+reps = 20
+test_points = 50
+workers = 1
+fwer = 0.05
+fdr = 0.05
+alphas = ["0.1"]
+edge_alphas = true
+
+[grids.split]
+n = [9, 20]
+dgps = ["reg_gauss", "cls_gauss"]
+
+[grids.cv_plus]
+n = [20]
+n_folds = [5]
+dgps = ["reg_constant"]
+
+[controls]
+reference = true
+mutants = ["k_plus_1"]

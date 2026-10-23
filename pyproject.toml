@@ -1,0 +1,109 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "conformcheck"
+version = "0.1.0.dev0"
+description = "Finite-sample coverage certification for Python conformal-prediction libraries, tested against exact distribution-free laws."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "conformcheck contributors" }]
+keywords = [
+    "conformal prediction", "uncertainty quantification", "coverage", "validation",
+    "testing", "statistics", "mapie", "crepes", "puncc", "torchcp",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Testing",
+]
+# Core (oracle, reference implementations, data, runner, plugin) needs only these.
+dependencies = ["numpy>=1.26", "scipy>=1.11", "scikit-learn>=1.4"]
+
+[project.optional-dependencies]
+# Libraries under test. Exact versions for a study come from uv.lock and are
+# recorded in every run's metadata.
+mapie = ["mapie>=1.6.0"]
+crepes = ["crepes>=0.9.1"]
+puncc = ["puncc>=0.9.3"]
+torchcp = ["torchcp>=1.2.1", "torch>=2.1"]
+all = ["mapie>=1.6.0", "crepes>=0.9.1", "puncc>=0.9.3", "torchcp>=1.2.1", "torch>=2.1"]
+
+[project.urls]
+Homepage = "https://github.com/h-a-forster/conformcheck"
+Documentation = "https://github.com/h-a-forster/conformcheck/tree/main/docs"
+Issues = "https://github.com/h-a-forster/conformcheck/issues"
+Changelog = "https://github.com/h-a-forster/conformcheck/blob/main/CHANGELOG.md"
+
+[project.scripts]
+conformcheck = "conformcheck.cli:main"
+
+[project.entry-points.pytest11]
+conformcheck = "conformcheck.pytest_plugin"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.uv]
+# See docs/DESIGN.md, section "Dependency overrides". These only affect this
+# repository's lockfile (uv sync), not users who pip-install the package.
+override-dependencies = [
+    # puncc 0.9.3 declares numpy<2.0.0, which conflicts with current scipy and
+    # has no Python 3.13 wheels. puncc is exercised under numpy 2 here; every
+    # puncc finding is re-checked under numpy<2 before it is reported.
+    "numpy>=1.26",
+    # torchcp 1.2.1 hard-depends on these for its graph, LLM and loss modules,
+    # which conformcheck never calls. torchsort has no Windows wheels. The
+    # torchcp adapter installs import stubs for whichever of them is missing.
+    "torchsort; sys_platform == 'never'",
+    "torch-geometric; sys_platform == 'never'",
+    "transformers; sys_platform == 'never'",
+    "torchvision; sys_platform == 'never'",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/conformcheck"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/conformcheck", "tests", "docs", "scripts", "README.md", "LICENSE",
+    "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CITATION.cff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: Monte Carlo tests that take more than a few seconds",
+    "adapter: tests that need a library under test installed",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["tmp", "data", "runs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]

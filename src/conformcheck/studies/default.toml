@@ -1,0 +1,49 @@
+# Default conformance study: the run reported in REPORT.md.
+# Sized to finish in under about 45 minutes on 4 CPU workers; `conformcheck plan`
+# prints the estimate for this machine before anything runs (docs/DESIGN.md, section 7).
+# Schema is parsed by conformcheck.study (milestone M4).
+
+name = "default"
+seed = 20261023
+reps = 200            # R: independent calibration draws per cell
+test_points = 500     # m: test points per repetition
+workers = 4
+fwer = 0.05           # Holm across all statistical cells
+fdr = 0.05            # Benjamini-Yekutieli, reported alongside
+
+# Alphas are exact decimals (see conformcheck.laws.as_fraction). "edge" adds, per n,
+# alpha = 1/(n+1) (k = n, largest finite order statistic) and alpha = 0.9/(n+1)
+# (k = n + 1, the set must be trivial).
+alphas = ["0.05", "0.1", "0.2"]
+edge_alphas = true
+
+[grids.split]          # split regression, CQR and all split classification methods
+n = [5, 9, 10, 19, 20, 49, 50, 99, 100, 999, 1000]
+dgps = ["reg_gauss", "reg_hetero_t", "cls_gauss"]   # each method uses the dgps of its task
+
+[grids.tied]           # exact discrete law; split absolute residual only
+n = [5, 9, 10, 19, 20, 49, 50, 99, 100]
+dgps = ["reg_tied"]
+
+[grids.jackknife_plus] # leave-one-out refits: n kept small
+n = [9, 10, 19, 20, 49, 50, 99]
+dgps = ["reg_constant", "reg_gauss"]   # constant model: exact law; gauss: 1 - 2 alpha bound
+
+[grids.cv_plus]
+n = [19, 20, 49, 50, 99, 100, 999, 1000]
+n_folds = [5, 10]
+dgps = ["reg_constant", "reg_gauss"]
+
+[grids.class_conditional]   # n is the per-class calibration size
+n = [5, 9, 10, 19, 20, 49, 50, 99]
+dgps = ["cls_gauss"]
+
+[grids.toy]            # scikit-learn bundled datasets, random splits of a finite pool
+n = [10, 19, 50, 99]
+alphas = ["0.1", "0.2"]
+edge_alphas = false
+dgps = ["diabetes", "digits"]
+
+[controls]             # rows that validate the oracle itself
+reference = true
+mutants = ["k_minus_1", "k_plus_1", "no_correction_linear", "n_instead_of_n_plus_1"]
