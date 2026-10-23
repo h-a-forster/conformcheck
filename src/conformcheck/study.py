@@ -69,8 +69,16 @@ class Study:
         return d
 
 
+REQUIRED_KEYS = ("name", "seed", "reps", "test_points", "alphas")
+
+
 def load_study(name_or_path: str | Path, reps: int | None = None) -> Study:
-    """Load a built-in study (``smoke``, ``default``, ``full``) or a TOML file."""
+    """Load a built-in study (``smoke``, ``default``, ``full``) or a TOML file.
+
+    The configuration is validated here, so a bad file fails before any work starts:
+    every problem raises ``ValueError`` (the CLI maps it to exit code 2, which the
+    resume wrapper does not retry).
+    """
     p = Path(name_or_path)
     if p.suffix == ".toml" and p.exists():
         text, source = p.read_text(encoding="utf-8"), str(p)
@@ -80,34 +88,86 @@ def load_study(name_or_path: str | Path, reps: int | None = None) -> Study:
             raise FileNotFoundError(f"no built-in study {name_or_path!r} and no such file")
         text, source = res.read_text(encoding="utf-8"), f"builtin:{name_or_path}"
     raw = tomllib.loads(text)
+    try:
+        return _parse_study(raw, source, reps)
+    except (KeyError, TypeError) as exc:  # wrong types slipping past the checks below
+        raise ValueError(f"{source}: invalid study configuration: {exc!r}") from exc
+
+
+def _positive_int(value: Any, what: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{what} must be a positive integer, got {value!r}")
+    return int(value)
+
+
+def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
+    from conformcheck.reference import MUTANTS
+
+    missing = [k for k in REQUIRED_KEYS if k not in raw]
+    if missing:
+        raise ValueError(f"{source}: missing required key(s): {', '.join(missing)}")
+    alphas = raw["alphas"]
+    if not isinstance(alphas, list) or not alphas:
+        raise ValueError(f"{source}: 'alphas' must be a non-empty list")
+    for a in alphas:
+        laws.as_fraction(str(a))  # raises for values outside (0, 1)
     grids = []
-    for gname, g in raw.get("grids", {}).items():
+    raw_grids = raw.get("grids", {})
+    if not raw_grids:
+        raise ValueError(f"{source}: no [grids.*] tables")
+    for gname, g in raw_grids.items():
         if gname not in GRID_METHODS:
             raise ValueError(f"unknown grid {gname!r}; known: {sorted(GRID_METHODS)}")
+        for key in ("n", "dgps"):
+            if key not in g or not g[key]:
+                raise ValueError(f"{source}: grid {gname!r} needs a non-empty {key!r}")
+        ns = tuple(_positive_int(v, f"grid {gname!r} n") for v in g["n"])
+        dgps = tuple(str(d) for d in g["dgps"])
+        for d in dgps:
+            task = get_dgp(d).task  # raises for an unknown dgp
+            if task not in GRID_METHODS[gname]:
+                raise ValueError(f"{source}: dgp {d!r} ({task}) has no methods on grid {gname!r}")
+        folds = tuple(_positive_int(k, f"grid {gname!r} n_folds") for k in g.get("n_folds", ()))
+        if gname == "cv_plus" and not folds:
+            raise ValueError(f"{source}: grid 'cv_plus' needs a non-empty 'n_folds'")
+        g_alphas = None
+        if "alphas" in g:
+            g_alphas = tuple(str(a) for a in g["alphas"])
+            for a in g_alphas:
+                laws.as_fraction(a)
         grids.append(
             Grid(
                 name=gname,
-                n=tuple(int(v) for v in g["n"]),
-                dgps=tuple(g["dgps"]),
-                alphas=tuple(str(a) for a in g["alphas"]) if "alphas" in g else None,
+                n=ns,
+                dgps=dgps,
+                alphas=g_alphas,
                 edge_alphas=g.get("edge_alphas"),
-                n_folds=tuple(int(k) for k in g.get("n_folds", ())),
+                n_folds=folds,
             )
         )
     controls = raw.get("controls", {})
+    mutants = tuple(str(x) for x in controls.get("mutants", ()))
+    unknown = [x for x in mutants if x not in MUTANTS]
+    if unknown:
+        raise ValueError(f"{source}: unknown mutant(s) {unknown}; known: {list(MUTANTS)}")
+    fwer = float(raw.get("fwer", 0.05))
+    fdr = float(raw.get("fdr", 0.05))
+    for what, v in (("fwer", fwer), ("fdr", fdr)):
+        if not 0 < v < 1:
+            raise ValueError(f"{source}: {what} must lie in (0, 1), got {v}")
     return Study(
         name=str(raw["name"]),
         seed=int(raw["seed"]),
-        reps=int(reps if reps is not None else raw["reps"]),
-        test_points=int(raw["test_points"]),
-        workers=min(int(raw.get("workers", 4)), 4),
-        fwer=float(raw.get("fwer", 0.05)),
-        fdr=float(raw.get("fdr", 0.05)),
-        alphas=tuple(str(a) for a in raw["alphas"]),
+        reps=_positive_int(reps if reps is not None else raw["reps"], "reps"),
+        test_points=_positive_int(raw["test_points"], "test_points"),
+        workers=min(_positive_int(raw.get("workers", 4), "workers"), 4),
+        fwer=fwer,
+        fdr=fdr,
+        alphas=tuple(str(a) for a in alphas),
         edge_alphas=bool(raw.get("edge_alphas", True)),
         grids=tuple(grids),
         reference=bool(controls.get("reference", True)),
-        mutants=tuple(controls.get("mutants", ())),
+        mutants=mutants,
         source=source,
     )
 
@@ -311,6 +371,8 @@ def cell_law(
             assert n_folds is not None
             bound = float(laws.cv_plus_bound(n, n_folds, alpha))
             desc = f"CV+ (K={n_folds}) bound (Barber et al. 2021, Thm 4)"
+            if not laws.cv_plus_bound_proven(n, n_folds):
+                desc += "; K does not divide n, so the bound is extrapolated"
         return CellLaw("lower", bound, CoverageLaw("lower", m, bound), None, desc)
     if k > n:
         return CellLaw("trivial", 1.0, None, k, f"k={k} > n={n}")

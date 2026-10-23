@@ -233,4 +233,7 @@ def test_cross_constant_model_rank(key: str) -> None:
     r = diagnostics.regression_ranks(
         "cv_plus", "", out.intervals, d.y_cal, np.zeros(20), np.zeros(M)
     )
-    assert r is not None and r[0].offset(laws.split_index(20, A10)) == 0
+    k = laws.split_index(20, A10)
+    # both endpoints: an off-by-one on the upper endpoint alone must fail this test
+    assert r is not None and len(r) == 2
+    assert all(x.offset(k) == 0 for x in r), [x.offset(k) for x in r]

@@ -16,6 +16,7 @@ adjusted with Holm (decisions) and Benjamini-Yekutieli (reported).
 from __future__ import annotations
 
 import csv
+import functools
 import json
 import math
 from collections import Counter, defaultdict
@@ -48,6 +49,11 @@ DOCUMENTED: dict[str, str] = {
     "mapie/aps/include_last_label=True": (
         "MAPIE documents include_last_label=True as conservative"
     ),
+}
+# The statuses each documented row is excused for. Any other status of that row (a
+# crash, a refused feasible level) still counts towards the headline.
+DOCUMENTED_STATUSES: dict[str, frozenset[str]] = {
+    "mapie/aps/include_last_label=True": frozenset({"CONSERVATIVE"}),
 }
 
 
@@ -111,6 +117,43 @@ class Cell:
         return self.p_cell is not None
 
 
+@functools.cache
+def _cell_law(
+    method: str,
+    variant: str,
+    library: str,
+    dgp: str,
+    n: int,
+    alpha: Fraction,
+    m: int,
+    n_folds: int | None,
+) -> Any:
+    """:func:`conformcheck.study.cell_law`, memoised (it is called twice per cell)."""
+    return cell_law(
+        method=method,
+        variant=variant,
+        library=library,
+        dgp=dgp,
+        n=n,
+        alpha=alpha,
+        m=m,
+        n_folds=n_folds,
+    )
+
+
+def _record_order(rec: dict[str, Any]) -> tuple[Any, ...]:
+    """Deterministic record order (``units.jsonl`` is in completion order)."""
+    return (
+        str(rec.get("grid", "")),
+        str(rec.get("dgp", "")),
+        int(rec.get("n", 0)),
+        str(rec.get("library", "")),
+        str(rec.get("method", "")),
+        str(rec.get("variant", "")),
+        rec.get("n_folds") or 0,
+    )
+
+
 def _rank_status(offsets: dict[str, int]) -> tuple[str, str]:
     """Deterministic status from the per-repetition order-statistic offsets."""
     below = {float(k): v for k, v in offsets.items() if float(k) < 0}
@@ -126,21 +169,21 @@ def _rank_status(offsets: dict[str, int]) -> tuple[str, str]:
 
 def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
     cells: list[Cell] = []
-    for rec in records:
+    for rec in sorted(records, key=_record_order):
         if rec.get("status") != "done":
             continue
         row = f"{rec['library']}/{rec['method']}/{rec['variant']}"
-        for a_str, ao in rec["alphas_out"].items():
+        for a_str, ao in sorted(rec["alphas_out"].items(), key=lambda kv: -Fraction(kv[0])):
             alpha = Fraction(a_str)
-            cl = cell_law(
-                method=rec["method"],
-                variant=rec["variant"],
-                library=rec["library"],
-                dgp=rec["dgp"],
-                n=rec["n"],
-                alpha=alpha,
-                m=rec["m"],
-                n_folds=rec.get("n_folds"),
+            cl = _cell_law(
+                rec["method"],
+                rec["variant"],
+                rec["library"],
+                rec["dgp"],
+                rec["n"],
+                alpha,
+                rec["m"],
+                rec.get("n_folds"),
             )
             c = Cell(
                 row=row,
@@ -186,9 +229,8 @@ def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
             else:
                 c.det_status, c.reason = _rank_status(c.rank_offsets)
             if counts.size:
-                c.coverage, c.ci_low, c.ci_high = stats.coverage_interval(
-                    counts, c.m, cl.law if cl.kind == "exact" else None
-                )
+                # empirical t interval: the law's variance holds only under the null
+                c.coverage, c.ci_low, c.ci_high = stats.coverage_interval(counts, c.m)
             # statistical part
             if counts.size >= 2 and c.n_ok == c.reps and cl.law is not None:
                 ties = ao.get("ties_reps", 0) > 0 or cl.one_sided
@@ -229,15 +271,8 @@ def adjust(cells: list[Cell], fwer: float, fdr: float) -> None:
                 bool(brej),
             )
             if c.law_kind == "exact":
-                law = cell_law(
-                    method=c.method,
-                    variant=c.variant,
-                    library=c.library,
-                    dgp=c.dgp,
-                    n=c.n,
-                    alpha=Fraction(c.alpha),
-                    m=c.m,
-                    n_folds=c.n_folds,
+                law = _cell_law(
+                    c.method, c.variant, c.library, c.dgp, c.n, Fraction(c.alpha), c.m, c.n_folds
                 ).law
                 if law is not None:
                     c.mde = stats.min_detectable_effect(law, c.reps, z_crit)
@@ -270,6 +305,8 @@ class RowSummary:
     large_n_status: str
     counts: dict[str, int]
     documented: str = ""
+    # worst small-n status once the row's documented statuses are set aside
+    small_n_undocumented: str = "-"
     non_pass: list[str] = field(default_factory=list)
 
 
@@ -281,6 +318,8 @@ def summarize_rows(cells: list[Cell]) -> list[RowSummary]:
     for row, cs in by_row.items():
         small = [c.status for c in cs if c.n <= SMALL_N]
         large = [c.status for c in cs if c.n > SMALL_N]
+        excused = DOCUMENTED_STATUSES.get(row, frozenset())
+        small_undoc = [st for st in small if st not in excused]
         out.append(
             RowSummary(
                 row=row,
@@ -292,6 +331,9 @@ def summarize_rows(cells: list[Cell]) -> list[RowSummary]:
                 large_n_status=worst(large) if large else "-",
                 counts=dict(Counter(c.status for c in cs)),
                 documented=DOCUMENTED.get(row, ""),
+                small_n_undocumented=(
+                    worst(small_undoc) if small_undoc else ("PASS" if small else "-")
+                ),
                 non_pass=[
                     f"{c.dgp} n={c.n} a={c.alpha}: {c.status} ({c.reason})"
                     for c in cs
@@ -333,9 +375,11 @@ def controls_summary(cells: list[Cell]) -> dict[str, Any]:
 
     Size: the cell p-value is conservative by construction (``2 min`` of two tests, both
     discrete), so its distribution is not uniform under the null and a uniformity test
-    on it is meaningless. The calibration check uses the exact two-sided mean test alone:
-    under the null ``P(p_mean <= 0.05) <= 0.05``, and a one-sided binomial test asks
-    whether the reference rows reject more often than that.
+    on it is meaningless. The calibration check counts how often the exact two-sided mean
+    test alone rejects at 0.05 (under the null ``P(p_mean <= 0.05) <= 0.05``). The count
+    is descriptive: the alphas of one unit and the reference rows on one dgp share their
+    calibration draws (common random numbers), so the cells are dependent and a binomial
+    test on the count would not give a valid p-value.
     """
     ref = [c for c in cells if c.library == "reference"]
     from conformcheck.reference import MUTANTS
@@ -348,11 +392,6 @@ def controls_summary(cells: list[Cell]) -> dict[str, Any]:
         if c.law_kind == "exact" and not c.one_sided and c.p_mean is not None
     ]
     raw = sum(p <= 0.05 for p in exact_p)
-    binom_p = (
-        float(sps.binomtest(raw, len(exact_p), 0.05, alternative="greater").pvalue)
-        if exact_p
-        else None
-    )
     size = {
         "reference_cells": len(ref_main),
         "reference_statistical_cells": len(stat_main),
@@ -361,7 +400,7 @@ def controls_summary(cells: list[Cell]) -> dict[str, Any]:
         "reference_raw_rejections_at_0.05": sum((c.p_cell or 1) <= 0.05 for c in stat_main),
         "reference_exact_mean_tests": len(exact_p),
         "reference_exact_mean_rejections_at_0.05": raw,
-        "reference_exact_mean_binom_p": binom_p,
+        "reference_exact_mean_rejection_rate": (raw / len(exact_p)) if exact_p else None,
     }
     power: dict[str, dict[str, Any]] = {}
     for mut in MUTANTS:
@@ -427,6 +466,7 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
                 "first_started",
                 "ended",
                 "source",
+                "missing_libraries",
             )
         },
         "study": study,
@@ -439,12 +479,15 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
     (out / "matrix.json").write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     (out / "matrix.md").write_text(render_matrix_md(cells, rows, payload), encoding="utf-8")
     (out / "summary.md").write_text(render_summary_md(cells, rows, payload), encoding="utf-8")
+    _cell_law.cache_clear()
     return payload
 
 
 def headline_counts(lib_rows: list[RowSummary]) -> dict[str, Any]:
+    """Rows flagged at small n. A documented row is excused only for its documented
+    statuses (``DOCUMENTED_STATUSES``); its other non-PASS statuses still count."""
     bad = {"FAIL", "CONSERVATIVE", "LAW_MISMATCH", "ERROR", "OVER_REFUSED"}
-    flagged = [r.row for r in lib_rows if r.small_n_status in bad and not r.documented]
+    flagged = [r.row for r in lib_rows if r.small_n_undocumented in bad]
     return {
         "rows": len(lib_rows),
         "rows_small_n_flagged": len(flagged),
@@ -526,8 +569,17 @@ def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[s
         "",
         f"**Headline.** {h['rows_small_n_flagged']} of {h['rows']} library-method rows are "
         "flagged (FAIL, CONSERVATIVE, LAW_MISMATCH, OVER_REFUSED or ERROR) in at least one "
-        "cell with n <= 100, excluding documented behaviour.",
+        "cell with n <= 100. A documented row is excused only for its documented status.",
         "",
+        *(
+            [
+                "**Not run (library not installed):** "
+                + ", ".join(payload["run"]["missing_libraries"]),
+                "",
+            ]
+            if payload["run"].get("missing_libraries")
+            else []
+        ),
         "Small-n status counts: "
         + ", ".join(f"{k} {val}" for k, val in sorted(h["by_small_n_status"].items())),
         "",

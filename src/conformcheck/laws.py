@@ -136,6 +136,11 @@ def cv_plus_bound(n: int, n_folds: int, alpha: AlphaLike) -> Fraction:
 
     ``1 - 2 alpha - min{2(1 - 1/K) / (n/K + 1), (1 - K/n) / (K + 1)}``. With ``K = n``
     this is the jackknife+ bound.
+
+    The theorem assumes folds of equal size ``m = n/K`` (an integer). For ``K`` not
+    dividing ``n`` the formula is applied with ``n/K`` as a rational, which is an
+    extrapolation, not a proven bound; :func:`cv_plus_bound_proven` says which case
+    applies.
     """
     _check_n(n)
     if not 2 <= n_folds <= n:
@@ -143,6 +148,11 @@ def cv_plus_bound(n: int, n_folds: int, alpha: AlphaLike) -> Fraction:
     k = Fraction(n_folds)
     slack = min(2 * (1 - 1 / k) / (n / k + 1), (1 - k / n) / (k + 1))
     return 1 - 2 * as_fraction(alpha) - slack
+
+
+def cv_plus_bound_proven(n: int, n_folds: int) -> bool:
+    """True when Barber et al. (2021, Thm 4) covers ``(n, K)``: ``K`` divides ``n``."""
+    return n % n_folds == 0
 
 
 def asymmetric_cqr_coverage(n: int, alpha: AlphaLike) -> Fraction:

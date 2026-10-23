@@ -50,10 +50,12 @@ Each cell gets one of the following statuses. When several apply, the most sever
 
 ## 2. Headline
 
-At n <= 100, **14 of the 31 library-method rows are flagged** in at least one cell.
+At n <= 100, **15 of the 31 library-method rows are flagged** in at least one cell.
 Flagged means FAIL, CONSERVATIVE, LAW_MISMATCH, OVER_REFUSED or ERROR. Behaviour the
-library documents is excluded: MAPIE documents `include_last_label=True` as
-conservative.
+library documents is excused, and only that behaviour: MAPIE documents
+`include_last_label=True` as conservative, so that row's CONSERVATIVE cells do not count.
+The same row still counts, because it also crashes (F7) and refuses feasible levels
+(F4), and MAPIE documents neither.
 
 Of the 2569 library cells:
 
@@ -67,24 +69,32 @@ Of the 2569 library cells:
 | FAIL | 25 |
 
 Only one row under-covers: MAPIE APS with `include_last_label=False`, which accounts for
-all 25 FAIL cells. Every other flag is one of three kinds:
+all 25 FAIL cells. They are all on the synthetic `cls_gauss` data. On the digits data
+the same row over-covers by a wide margin in all 8 cells (F1). Its coverage follows
+the model, not the law. The other flags are of these kinds:
 
 - over-coverage by exactly one order statistic, from floating-point arithmetic on
-  `alpha`;
+  `alpha` or from a non-randomized p-value;
+- the documented conservatism of `include_last_label=True`;
 - a refusal of a feasible level;
 - a crash.
 
+The status columns are the worst status over the row's cells with n <= 100 and n > 100,
+copied from [matrix.md](docs/results/default/matrix.md).
+
 | Row | Small n | Large n | What |
 |---|---|---|---|
-| `mapie/aps/include_last_label=False` | FAIL | FAIL | coverage about 0.53-0.57 at every n and alpha (F1) |
-| `mapie/aps/include_last_label=True` | (documented) | CONSERVATIVE | coverage 0.97 vs 0.90 at n = 1000 (F1, documented) |
-| `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | exact where it runs; crashes when a class is missing from a small calibration set (F7) |
-| `mapie/split_abs/default`, `mapie/lac/default`, `mapie/cqr/*` | OVER_REFUSED | OVER_REFUSED | raises for alpha in [1/(n+1), 1/n) (F4) |
+| `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.53-0.57 on `cls_gauss` at every n and alpha (FAIL), 0.96-0.97 on digits (CONSERVATIVE) (F1); also F4 and F7 |
+| `mapie/aps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.971 vs 0.900 at n = 1000); also crashes (F7) and refuses feasible levels (F4), which are not documented |
+| `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | exact where it runs; crashes when a class is missing from a small calibration set (F7); F4 |
+| `mapie/split_abs/default`, `mapie/lac/default`, `mapie/cqr/symmetric` | OVER_REFUSED | OVER_REFUSED | raises for alpha in [1/(n+1), 1/n) (F4) |
+| `mapie/cqr/asymmetric` | OVER_REFUSED | REFUSED | raises when n < 2/alpha although the per-side index k' <= n: 5 cells, at n = 9, alpha = 0.2 and n = 19, alpha = 0.1 (F4) |
 | `mapie/cv_plus/K=5`, `K=10` | PASS | CONSERVATIVE | lower endpoint one order statistic too high at n = 999, alpha = 0.05 (F5) |
 | `crepes/split_abs/default` | CONSERVATIVE | CONSERVATIVE | k + 1 at integer boundaries (F2) |
-| `crepes/lac/unsmoothed`, `crepes/class_conditional/unsmoothed` | CONSERVATIVE | CONSERVATIVE | same boundary effect for sets (F3) |
+| `crepes/lac/unsmoothed` | CONSERVATIVE | CONSERVATIVE | same boundary effect for sets (F3) |
+| `crepes/class_conditional/unsmoothed` | CONSERVATIVE | - | same boundary effect for sets (F3); run at n <= 99 per class only |
 | `puncc/jackknife_plus/K=n` | ERROR | - | crashes on folds of size one, so every cell (F6) |
-| `puncc/cv_plus/K=5`, `K=10` | ERROR | ERROR / CONSERVATIVE | crash at alpha = 1/(n+1) and on folds of size one; k + 1 at n = 99, 999 (F6) |
+| `puncc/cv_plus/K=5`, `K=10` | ERROR | ERROR | crash at alpha = 1/(n+1) and on folds of size one; k + 1 at n = 99, 999 (4 CONSERVATIVE cells each) (F6) |
 | `torchcp/split_abs/default`, `torchcp/cqr/default` | ERROR | ERROR | crash where k > n instead of returning a trivial interval (F8) |
 
 These rows pass every cell. Some refuse only where `k > n`, which is valid.
@@ -107,7 +117,10 @@ code as the libraries.
 The cell p-value is `2 min(p_mean, p_gof)` of two discrete tests, so it is conservative
 by construction and not uniform under the null. The calibration check therefore uses the
 exact two-sided mean test alone. It rejects at 0.05 in 19 of 402 exact-law reference
-cells (4.7%). A one-sided binomial test against 5% gives p = 0.63.
+cells (4.7%), against a nominal 5%. This count is descriptive. The cells are not
+independent: the alphas of one unit and the reference rows on one DGP use the same
+calibration draws (common random numbers), so a binomial test on the count would not
+give a valid p-value. The 0 Holm rejections above do not depend on independence.
 
 **Power.** Four deliberately wrong mutants of split regression and LAC are run. Cells
 where a mutant happens to use the correct order statistic are excluded. Examples:
@@ -129,49 +142,76 @@ one-step error often selects the same tied value, so the output is identical and
 nothing can detect it. The
 statistical test alone loses power above n = 100: one order statistic moves coverage by
 1/(n+1), which is about 0.001 at n = 999, while the 95% interval half-width there is
-about 0.003. Classification mutants rely on the statistical test only, so a one-step
+about 0.0024. Classification mutants rely on the statistical test only, so a one-step
 error in a classifier at n >= 100 can go undetected. Section 7 covers this limitation.
 
 ## 4. Findings
 
-The coverage figures below are the mean over 200 draws × 500 test points, with a 95%
-interval from the cell's exact or empirical standard error. Holm p-values are adjusted
-over all 3058 statistical cells.
+The coverage figures below are the mean over 200 draws × 500 test points (fewer test
+points on the toy datasets), with a 95% t interval from the empirical spread of the 200
+covered counts. Holm p-values are adjusted over all 3058 statistical cells.
 
-### F1. MAPIE APS `include_last_label=False` under-covers by 0.25-0.38
+### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
+
+On the synthetic `cls_gauss` data it under-covers by 0.25-0.38:
 
 | n | alpha | Exact | Observed [95% CI] |
 |---|---|---|---|
-| 10 | 0.2 | 0.818 | 0.530 [0.515, 0.546] |
-| 19 | 0.1 | 0.900 | 0.554 [0.544, 0.563] |
-| 99 | 0.05 | 0.950 | 0.572 [0.569, 0.575] |
-| 1000 | 0.1 | 0.900 | 0.560 [0.558, 0.562] |
+| 10 | 0.2 | 0.818 | 0.530 [0.524, 0.537] |
+| 19 | 0.1 | 0.900 | 0.554 [0.550, 0.558] |
+| 99 | 0.05 | 0.950 | 0.572 [0.568, 0.575] |
+| 1000 | 0.1 | 0.900 | 0.560 [0.557, 0.563] |
 
-All 25 FAIL cells have Holm p = 0 at double precision. Coverage is about 0.53-0.57 whatever the
-target, from n = 10 to n = 1000. That this does not shrink with n shows it is not a
-finite-sample effect.
+On the digits data, with an accurate model, it over-covers in all 8 cells:
 
-**Mechanism.** We checked it on the same data against an independent computation.
-MAPIE's APS calibration scores are randomized: the cumulative probability up to the
-true label minus `U × p(true label)`. With `False`, the test-time rule is deterministic
-and drops the label whose cumulative probability crosses the threshold. Mixing smaller,
-randomized calibration scores with a deterministic exclusion rule removes the last label
-far more often than it should. In our 4-class problem that label is often the true one.
+| n | alpha | Exact | Observed [95% CI] | Holm p |
+|---|---|---|---|---|
+| 10 | 0.2 | 0.818 | 0.964 [0.962, 0.966] | 3e-303 |
+| 19 | 0.1 | 0.900 | 0.974 [0.972, 0.976] | 2e-121 |
+| 50 | 0.1 | 0.902 | 0.972 [0.971, 0.974] | 0 |
+| 99 | 0.2 | 0.800 | 0.959 [0.958, 0.960] | 0 |
+
+All 25 FAIL cells (all on `cls_gauss`) have Holm p = 0 at double precision. There,
+coverage is about 0.53-0.57 whatever the target, from n = 10 to n = 1000. On digits it
+is about 0.96-0.97 whatever the target. Neither moves with n or alpha, so this is not a
+finite-sample effect: the coverage is set by the model, not by the order statistic.
+
+**Mechanism.** We checked it on the same data against an independent computation and
+in MAPIE's source (`conformity_scores/sets/utils.py`). MAPIE's APS calibration scores
+are randomized: the cumulative probability up to the true label minus
+`U × p(true label)`. With `False`, the test-time rule is deterministic: it keeps the
+labels whose cumulative probability stays at or below the threshold, but it always keeps
+the top label, since the cut-off is `max(q, smallest cumulative probability)`. The
+calibration scores and the prediction rule therefore do not match, and nothing ties
+coverage to the order statistic.
+
+- With the `cls_gauss` classifier the true label is often ranked low (see below), so the
+  rule drops it far more often than alpha allows.
+- With the digits model (top-1 accuracy about 0.96), the sets are mostly the top label
+  alone, so coverage is roughly the top-1 accuracy, well above 1 - alpha.
 
 The installed docstring says that `True` and `False` "may result in a coverage higher
-than 1 - alpha". For `False` we observe much lower coverage. DESIGN hypothesis 3
-predicted this direction.
+than 1 - alpha". The digits cells fit that sentence. The `cls_gauss` cells do not: there
+`False` gives far lower coverage, which a user cannot know in advance without
+evaluating the model.
 
-The size of the effect depends on the model. Our fixed classifier is weak, so the true
-label is often ranked last, and a sharper model would lose less coverage. The direction
-does not depend on the model.
+**The `cls_gauss` classifier is anti-informative.** Its fixed weights
+(`models.FixedClassifier`) do not line up with the class means of the DGP
+(`data.CLS_MEANS`). On 100,000 test draws its top-1 accuracy is 0.119, below the 0.25 of
+chance. The true label is ranked first, second, third and last in 11.9%, 23.1%, 22.8% and
+42.2% of draws, and classes 1 and 2 are predicted as classes 0 and 1 about 91% of the
+time. The exact laws hold for any fixed model, so every other result is unaffected. This
+choice does, however, maximize the size of the F1 under-coverage. With a reasonable
+model the same rule over-covers instead, as the digits cells show.
 
 **Related settings.**
 
-- `include_last_label=True` is CONSERVATIVE in every cell: 0.971 [0.969, 0.973] against
-  0.900 at n = 1000. MAPIE documents this.
-- `"randomized"` matches the exact law wherever it runs: 0.901 [0.899, 0.904] against
-  0.900 at n = 999.
+- `include_last_label=True` is CONSERVATIVE in every cell where it runs: 0.971
+  [0.970, 0.972] against 0.900 at n = 1000 on `cls_gauss`, and 0.992 against 0.900 at
+  n = 99 on digits. MAPIE documents this.
+- `"randomized"` matches the exact law wherever it runs, on both datasets: 0.901
+  [0.899, 0.904] against 0.900 at n = 999 on `cls_gauss`, and 0.901 [0.896, 0.905] at
+  n = 99 on digits.
 
 Repros: `mapie__aps__include_last_label-False__coverage.py` (z = -50.7) and
 `mapie__aps__include_last_label-True__coverage.py` (z = +14.4).
@@ -183,11 +223,18 @@ floating point, and `1 - 0.9` evaluates to `0.09999999999999998`. Wherever
 `(n + 1) × alpha` is an integer, the index is one too small. The interval then uses the
 (k+1)-th smallest score instead of the k-th.
 
-Rank recovery saw this in 200 of 200 draws in every cell where `(n + 1) alpha` is an
-integer and alpha is 0.1 or 0.2:
+On the continuous-score data (`reg_gauss`, `reg_hetero_t`, diabetes), rank recovery saw
+this in 200 of 200 draws in every cell where `(n + 1) alpha` is an integer and alpha is
+0.1 or 0.2:
 
-- n = 9, 19, 49, 99, 999;
+- n = 9, 19, 49, 99, 999 (diabetes: n = 19, 99, the toy sizes);
 - the edge level alpha = 1/(n+1) at n = 5 and n = 1000.
+
+On the tied-score DGP (`reg_tied`) the k-th and (k+1)-th smallest scores are often the
+same value, so the error is visible only in the draws where they differ: 200 of 200 at
+n = 5 (edge level) and n = 9, alpha = 0.1, but only 2 to 29 of 200 in the other
+flagged cells (for example 20 of 200 at n = 19, alpha = 0.2), and in none at n = 49 and
+99 with alpha = 0.1.
 
 There, crepes returns infinite intervals where the k = n-th score gives a finite valid
 one.
@@ -199,8 +246,8 @@ The over-coverage is 1/(n+1). Examples:
 
 | n | alpha | Exact | Observed [95% CI] | Holm p |
 |---|---|---|---|---|
-| 19 | 0.1 | 0.900 | 0.949 [0.940, 0.959] | 2e-43 |
-| 9 | 0.2 | 0.800 | 0.901 [0.884, 0.918] | 4e-64 |
+| 19 | 0.1 | 0.900 | 0.949 [0.943, 0.956] | 2e-43 |
+| 9 | 0.2 | 0.800 | 0.901 [0.886, 0.915] | 4e-64 |
 | 999 | 0.1 | 0.900 | 0.903 [0.900, 0.905] | 1 (rank recovery only) |
 
 The cells are flagged as CONSERVATIVE, not FAIL: the intervals remain valid but are
@@ -217,9 +264,9 @@ precision (n <= 19). Examples on the synthetic data:
 
 | Row | n | alpha | Exact | Observed [95% CI] |
 |---|---|---|---|---|
-| `crepes/lac/unsmoothed` | 19 | 0.1 | 0.900 | 0.947 [0.937, 0.956] |
-| `crepes/lac/unsmoothed` | 9 | 0.2 | 0.800 | 0.894 [0.877, 0.911] |
-| `crepes/class_conditional/unsmoothed` (n per class) | 19 | 0.1 | 0.900 | 0.950 [0.945, 0.954] |
+| `crepes/lac/unsmoothed` | 19 | 0.1 | 0.900 | 0.947 [0.940, 0.954] |
+| `crepes/lac/unsmoothed` | 9 | 0.2 | 0.800 | 0.894 [0.881, 0.908] |
+| `crepes/class_conditional/unsmoothed` (n per class) | 19 | 0.1 | 0.900 | 0.950 [0.946, 0.953] |
 
 On the digits data at n = 19, alpha = 0.1, `crepes/lac/unsmoothed` gives 0.948.
 
@@ -232,16 +279,19 @@ Repro: `crepes__lac__unsmoothed__coverage.py` (z = +15.4 at n = 9, alpha = 0.2).
 
 ### F4. MAPIE refuses feasible levels alpha in [1/(n+1), 1/n)
 
-MAPIE's split regressor, LAC and APS classifiers and both CQR variants raise ValueError
+MAPIE's split regressor, LAC and APS classifiers and symmetric CQR raise ValueError
 ("Number of samples of the score is too low ... must be lower than the number of
 samples") at alpha = 1/(n+1). That level has `k = n`, and a finite valid set exists. The
 cause is a check that requires `n >= 1/alpha` rather than `(n+1)(1-alpha) <= n`.
 
-This is OVER_REFUSED at every n from 5 to 1000. It is not unsafe, but the user gets no
-set at all.
+For these rows this is OVER_REFUSED at alpha = 1/(n+1) at every n from 5 to 1000. It is
+not unsafe, but the user gets no set at all.
 
-The asymmetric CQR variant applies the check to alpha/2. It refuses, for example, at
-n = 9, alpha = 0.2, where the per-side index `ceil(10 × 0.9) = 9 <= n` is feasible.
+The asymmetric CQR variant is different. It applies the check to alpha/2, so it raises
+whenever n < 2/alpha. At alpha = 1/(n+1) the per-side index k' exceeds n, so its
+refusal there is valid (REFUSED). It over-refuses only when 1/(n+1) <= alpha/2 < 1/n,
+where `k' = ceil((n+1)(1 - alpha/2)) = n` is feasible. In this grid that is 5 cells:
+n = 9 with alpha = 0.2, and n = 19 with alpha = 0.1, on the DGPs where those sizes run.
 
 **Related: `allow_infinite_bounds=True`.** `SplitConformalRegressor.predict_interval`
 documents this option as allowing infinite bounds. With it set, the split regressor
@@ -265,7 +315,7 @@ both endpoints must use the k-th smallest |y|. At n = 999, alpha = 0.05, for bot
 and K = 10, the lower endpoint uses 951 instead of 950 in 200 of 200 draws. The upper
 endpoint is correct.
 
-Coverage is 0.9508 [0.9492, 0.9525] against 0.9500. Monte Carlo cannot see this; only
+Coverage is 0.9508 [0.9491, 0.9526] against 0.9500. Monte Carlo cannot see this; only
 rank recovery does.
 
 The likely cause is floating point in MAPIE's lower-quantile level
@@ -327,7 +377,7 @@ Repros: `torchcp__split_abs__default__raises.py` and `torchcp__cqr__default__rai
 |---|---|---|
 | 1 | crepes regression is conservative by one order statistic at integer boundaries | **Confirmed** (F2). Exactly the predicted cells (n in {9, 19, 49, 99, 999}, alpha in {0.1, 0.2}), not the paired n, plus the edge level alpha = 1/(n+1) at n = 5 and 1000. |
 | 2 | crepes unsmoothed classification is conservative at integer boundaries | **Confirmed** (F3). Smoothed rows pass. |
-| 3 | MAPIE APS `True` conservative, `False` under-covers, `"randomized"` passes | **Confirmed** (F1). `"randomized"` passes in every cell where it runs. It is also affected by F4 and F7. |
+| 3 | MAPIE APS `True` conservative, `False` under-covers, `"randomized"` passes | **Partly refuted: model-dependent** (F1). `True` is conservative and `"randomized"` passes in every cell where they run (both are also affected by F4 and F7). `False` under-covers on `cls_gauss`, whose classifier is anti-informative, but over-covers by a wide margin on digits. It does not follow the law in either direction. |
 | 4 | k > n behaviour differs, and all libraries are valid | **Partly refuted.** puncc refuses (valid). crepes returns trivial sets (valid, with a warning). MAPIE refuses even with `allow_infinite_bounds=True` on the split regressor (F4). TorchCP regression crashes (F8), while its classifiers return full sets. |
 | 5 | MAPIE asymmetric CQR has coverage (2k' - (n+1))/(n+1) | **Confirmed where it runs.** For example 0.9177 [0.9124, 0.9230] against 0.92 at n = 49, alpha = 0.1, with rank recovery exact per side. It over-refuses some feasible levels (F4). |
 | 6 | MAPIE RAPS follows the law with n_eff = n - ceil(0.2 n) | **Not tested.** RAPS was cut from v0.1 (DESIGN section 2). |
@@ -348,6 +398,18 @@ Repros: `torchcp__split_abs__default__raises.py` and `torchcp__cqr__default__rai
   Their coverage matched the law (Holm p = 1). The tolerance now scales with the
   magnitude of the endpoints. The 61 TorchCP regression units were re-run, and those
   cells now pass. This was a bug in conformcheck, not in TorchCP.
+- **Review corrections (report only, same run).** A review of the first version of this
+  report led to these changes, all rebuilt from the same committed `units.jsonl.gz`
+  without re-running any library:
+  - coverage intervals are now t intervals from the empirical spread of the counts. The
+    first version used the variance of the exact law, which is the null variance and
+    the wrong spread in the cells where an interval matters. No status or p-value
+    changed;
+  - the headline excuses a documented row only for its documented status, which moved
+    it from 14 to 15 rows;
+  - F1 now reports the digits cells, where the same setting over-covers;
+  - the size check is reported as a count without a binomial p-value, because the
+    cells share calibration draws.
 - **Earlier fixes.** Two earlier pipeline errors were fixed before the final run:
   - interval half-widths had hidden one-sided off-by-ones, so rank recovery became
     per-endpoint;
@@ -376,9 +438,17 @@ Repros: `torchcp__split_abs__default__raises.py` and `torchcp__cqr__default__rai
 
   Both are valid. The reference deterministic APS gives 0.946 in the same cell, so
   puncc's sets are wider than the reference, but the oracle does not grade this.
-- **The model shapes effect sizes.** The classifier is a fixed weak softmax model. It
-  makes the APS score atom large and drives the size of F1. The direction of F1 does not
-  depend on it.
+- **The model shapes effect sizes, and for F1 the direction.** The `cls_gauss`
+  classifier is a fixed softmax model that is anti-informative (top-1 accuracy 0.119
+  against 0.25 for chance; F1). That makes the deterministic-APS score atom large and
+  maximizes the F1 under-coverage. With the accurate digits model the same MAPIE setting
+  over-covers. The exact laws hold for any fixed model, so the other findings do not
+  depend on this choice. No synthetic DGP with an informative classifier was run; digits
+  is the only informative-model comparison.
+- **CV+ bounds where K does not divide n.** Barber et al. (2021, Thm 4) assume folds of
+  equal size n/K. The `lower` cells of CV+ with a real model at n = 19, 49, 99 and 999
+  apply the same formula with n/K as a fraction, which is an extrapolation. All of those
+  cells pass, so no result depends on it.
 - **A single seed.** The run uses one seed and one machine (Windows, CPU). The
   deterministic findings (F2, F4, F5, F6, F8) do not depend on the seed. The statistical
   ones have Holm p far below the threshold.

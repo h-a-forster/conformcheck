@@ -25,16 +25,20 @@ library-method rows in all.
 
 The default study ran MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3 and TorchCP 1.2.1. It used
 R = 200 calibration draws × 500 test points per cell and 3058 statistical cells, with
-Holm FWER 0.05. **14 of the 31 library-method rows are flagged at n <= 100.** Only one
-row under-covers. The rest over-cover by exactly one order statistic, refuse a level
-where a valid set exists, or crash. The reference rows produced 0 false alarms. Details,
-intervals and limitations are in [REPORT.md](REPORT.md).
+Holm FWER 0.05. **15 of the 31 library-method rows are flagged at n <= 100.** Only one
+row under-covers: MAPIE APS with `include_last_label=False`, whose coverage follows the
+model rather than the law (far below target with an anti-informative synthetic
+classifier, far above it on digits). The other flags are over-coverage by one order
+statistic, MAPIE's documented conservatism of `include_last_label=True`, refusals of a
+level where a valid set exists, and crashes. The reference rows produced 0 false alarms.
+Details, intervals and limitations are in [REPORT.md](REPORT.md).
 
 | Finding | Kind | Size |
 |---|---|---|
-| MAPIE APS `include_last_label=False` | under-coverage | about 0.55 coverage at a 0.90 target, every n |
+| MAPIE APS `include_last_label=False` | coverage set by the model, not the law | about 0.55 at a 0.90 target on synthetic data (under), about 0.97 on digits (over), every n |
 | crepes split regression and unsmoothed LAC | k + 1 at integer `(n+1) alpha` (float `1 - 0.9`) | 0.949 vs 0.900 at n = 19 |
-| MAPIE split, LAC, APS, CQR | refuse feasible `alpha` in `[1/(n+1), 1/n)` | every n |
+| MAPIE split, LAC, APS, symmetric CQR | refuse feasible `alpha` in `[1/(n+1), 1/n)` | every n |
+| MAPIE asymmetric CQR | refuses when `n < 2/alpha` although `k' <= n` | n = 9, alpha = 0.2; n = 19, alpha = 0.1 |
 | MAPIE CV+ (K = 5, 10) | lower endpoint uses k + 1 at n = 999, alpha = 0.05 | found by rank recovery |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
@@ -94,8 +98,14 @@ uv sync --all-extras
 uv run conformcheck libraries
 ```
 
-The core needs only numpy, scipy and scikit-learn. The libraries under test are
-optional extras: `mapie`, `crepes`, `puncc`, `torchcp`, `all`.
+The core needs only numpy, scipy and scikit-learn. To run the libraries under test, use
+`uv sync --all-extras` in a clone, as above. That is the only supported way: the
+repository's lockfile carries dependency overrides (puncc declares `numpy<2`; TorchCP
+requires `torchsort`, which has no wheels on some platforms). The optional extras
+`mapie`, `crepes`, `puncc`, `torchcp` and `all` exist, but outside the clone `puncc` does
+not resolve from wheels on Python 3.13, and `torchcp` does not resolve on Windows.
+`conformcheck run` refuses to start when a library the study needs is missing, unless
+`--libraries` or `--allow-missing` is given.
 
 ## Quick start
 
@@ -116,7 +126,11 @@ def test_my_split_is_exact():
     report.assert_valid(allow_conservative=False)
 ```
 
-`check_split_classifier` does the same for set-valued classifiers. Under pytest,
+Rank recovery assumes the absolute-residual score. By default (`score="auto"`) it is
+applied only to intervals of that shape; pass `score="other"` for a different score
+(for example a normalised residual), which then gets the statistical test alone, or
+`score="abs"` to force it. `check_split_classifier` does the same for set-valued
+classifiers. Under pytest,
 `--conformcheck-reps` and `--conformcheck-seed` change the defaults. A failing check
 reads like this (a deliberate `k - 1` bug):
 

@@ -15,9 +15,13 @@ Example::
 ``predict_proba``) and returns a boolean ``(m, 4)`` set matrix.
 
 Each (n, alpha) cell runs ``reps`` independent calibration draws from the built-in
-DGPs (``reg_gauss``, ``cls_gauss``). Regression cells also get rank recovery (the order
-statistic used, read off the intervals), which is deterministic. Statistical cells use
-the exact BetaBinomial law (mean and goodness-of-fit tests) with Holm across all cells.
+DGPs (``reg_gauss``, ``cls_gauss``). Regression cells can also get rank recovery (the
+order statistic used, read off the intervals), which is deterministic; it assumes the
+absolute-residual score and is controlled by ``score`` (see :func:`check_split_regressor`).
+Statistical cells use the exact BetaBinomial law (mean and goodness-of-fit tests) with
+Holm across all cells. A Holm rejection is ``FAIL`` or ``CONSERVATIVE`` when the mean
+test alone rejects (by the sign of the deviation) and ``LAW_MISMATCH`` when only the
+goodness-of-fit test does (right mean, wrong distribution).
 ``alpha`` is read as the exact decimal it denotes; the callable receives a float.
 """
 
@@ -26,6 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from fractions import Fraction
+from typing import Literal
 
 import numpy as np
 
@@ -34,6 +39,8 @@ from conformcheck.data import get_dgp, rep_seed_sequence
 
 RegressorFn = Callable[..., np.ndarray]
 ClassifierFn = Callable[..., np.ndarray]
+Score = Literal["auto", "abs", "other"]
+SCORES = ("auto", "abs", "other")
 
 
 @dataclass
@@ -46,6 +53,9 @@ class CheckCell:
     p_value: float | None
     rank_offsets: dict[float, int] = field(default_factory=dict)
     p_holm: float | None = None
+    p_mean: float | None = None
+    p_gof: float | None = None
+    rank_skipped: int = 0  # reps where ``score="auto"`` found intervals not of abs form
     status: str = "PASS"
     detail: str = ""
 
@@ -117,10 +127,20 @@ def _finish(name: str, cells: list[CheckCell], reps: int, m: int, fwer: float): 
     stat = [c for c in cells if c.p_value is not None]
     if stat:
         h = stats.holm([c.p_value for c in stat], fwer)
-        for c, adj, rej in zip(stat, h.adjusted, h.reject, strict=True):
+        for c, adj, rej, thr in zip(stat, h.adjusted, h.reject, h.thresholds, strict=True):
             c.p_holm = float(adj)
-            if rej and c.status == "PASS":
+            if not rej or c.status != "PASS":
+                continue
+            # as in report.adjust: the mean test alone (Bonferroni factor 2) decides the
+            # direction; a rejection driven only by the goodness-of-fit test is a law
+            # mismatch, not under- or over-coverage
+            assert c.p_mean is not None
+            mean_alone = min(1.0, 2 * c.p_mean) if c.p_gof is not None else c.p_mean
+            if mean_alone <= thr:
                 c.status = "FAIL" if c.coverage < c.target else "CONSERVATIVE"
+            else:
+                c.status = "LAW_MISMATCH"
+                c.detail = (c.detail + " " if c.detail else "") + "distribution differs from law"
     return ConformanceReport(name, cells, reps, m, fwer)
 
 
@@ -132,13 +152,25 @@ def check_split_regressor(
     test_points: int | None = None,
     seed: int | None = None,
     fwer: float = 0.05,
+    score: Score = "auto",
 ) -> ConformanceReport:
     """Check a split-conformal regression callable against the exact laws.
 
     ``fn(x_cal, y_cal, x_test, alpha, model)`` must return ``(m, 2)`` intervals; ``model``
-    is a fixed fitted regressor (``predict``) and the score is assumed to be the absolute
-    residual for rank recovery (other scores still get the statistical test).
+    is a fixed fitted regressor (``predict``).
+
+    ``score`` controls rank recovery, which reads the order statistic off the intervals
+    assuming the absolute-residual score ``|y - model.predict(x)|``:
+
+    * ``"abs"``: always use it (the method is declared to use that score);
+    * ``"other"``: never use it; only the statistical test applies (any valid score, for
+      example a normalised residual, follows the same exact law);
+    * ``"auto"`` (default): use it in a repetition only when the intervals have the form
+      the absolute-residual score produces (each endpoint at a constant offset from the
+      prediction); otherwise skip it for that repetition.
     """
+    if score not in SCORES:
+        raise ValueError(f"score must be one of {SCORES}, got {score!r}")
     reps, m, seed = _settings(reps, test_points, seed)
     dgp = get_dgp("reg_gauss")
     model = dgp.model()
@@ -147,7 +179,7 @@ def check_split_regressor(
         for a_raw in _as_tuple(alpha):
             a = laws.as_fraction(a_raw)
             k = laws.split_index(nn, a)
-            counts, offsets, nontrivial = [], {}, 0
+            counts, offsets, nontrivial, skipped = [], {}, 0, 0
             for rep in range(reps):
                 d = dgp.draw(
                     np.random.default_rng(rep_seed_sequence(seed, "check", nn, rep)), nn, m
@@ -156,14 +188,22 @@ def check_split_regressor(
                 if iv.shape != (m, 2):
                     raise ValueError(f"expected intervals of shape {(m, 2)}, got {iv.shape}")
                 counts.append(int(np.sum((iv[:, 0] <= d.y_test) & (d.y_test <= iv[:, 1]))))
+                nontrivial += k > nn and not diagnostics.is_trivial(iv, None)
+                if score == "other":
+                    continue
+                pred_test = model.predict(d.x_test)
+                if score == "auto" and not _abs_form(iv, pred_test):
+                    skipped += 1
+                    continue
                 ranks = diagnostics.regression_ranks(
-                    "split_abs", "", iv, d.y_cal, model.predict(d.x_cal), model.predict(d.x_test)
+                    "split_abs", "", iv, d.y_cal, model.predict(d.x_cal), pred_test
                 )
                 if ranks:
                     off = max((r.offset(k) for r in ranks), key=abs)
                     offsets[off] = offsets.get(off, 0) + 1
-                nontrivial += k > nn and not diagnostics.is_trivial(iv, None)
-            cells.append(_cell(nn, a, k, np.array(counts), m, offsets, nontrivial))
+            cell = _cell(nn, a, k, np.array(counts), m, offsets, nontrivial)
+            cell.rank_skipped = skipped
+            cells.append(cell)
     return _finish("check_split_regressor", cells, reps, m, fwer)
 
 
@@ -201,6 +241,21 @@ def check_split_classifier(
     return _finish("check_split_classifier", cells, reps, m, fwer)
 
 
+def _abs_form(iv: np.ndarray, pred: np.ndarray) -> bool:
+    """True when both endpoints sit at a constant offset from the prediction (the shape
+    an absolute-residual split method produces), up to float tolerance."""
+    lo, hi = pred - iv[:, 0], iv[:, 1] - pred
+    for side in (lo, hi):
+        if np.all(np.isinf(side)):
+            continue
+        if not np.all(np.isfinite(side)):
+            return False
+        tol = diagnostics.REL_TOL * max(1.0, float(np.max(np.abs(iv[np.isfinite(iv)]))))
+        if float(side.max() - side.min()) > tol:
+            return False
+    return True
+
+
 def _cell(
     n: int,
     a: Fraction,
@@ -224,7 +279,7 @@ def _cell(
     elif above:
         cell.status, cell.detail = "CONSERVATIVE", f"order statistic {max(above):+g}"
     law = laws.split_count_law(n, a, m)
-    p_mean = stats.mean_test(counts, law).pvalue
-    p_gof = stats.gof_test(counts, law).pvalue
-    cell.p_value = stats.cell_pvalue(p_mean, p_gof)
+    cell.p_mean = stats.mean_test(counts, law).pvalue
+    cell.p_gof = stats.gof_test(counts, law).pvalue
+    cell.p_value = stats.cell_pvalue(cell.p_mean, cell.p_gof)
     return cell

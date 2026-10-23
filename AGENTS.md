@@ -99,21 +99,49 @@ Status (2026-10-23): **M0 to M8 done; v0.1.0 prepared (not tagged, not pushed).*
 - Every library repro exits 1 under `conformcheck repro --verify`. The puncc repros
   were re-checked under `numpy<2` (`repros/puncc_numpy1_recheck.txt`).
 - Oracle controls: the reference rows have 0 Holm rejections and 0 non-PASS cells.
-  The exact mean test rejects in 19 of 402 cells (binomial p = 0.63). The mutants are
-  caught as shown in REPORT section 3.
+  The exact mean test rejects in 19 of 402 cells (4.7%), reported as a count only (the
+  cells share draws). The mutants are caught as shown in REPORT section 3.
 - RAPS was cut from v0.1 (DESIGN section 2).
+- Review fixes (2026-10-23, after v0.1.0 was prepared; see CHANGELOG "Unreleased"):
+  empirical coverage intervals; headline excuses only documented statuses (now 15 of
+  31 rows); F1 rewritten (digits over-covers, synthetic classifier is
+  anti-informative, hypothesis 3 partly refuted); size check without a p-value;
+  `check_split_regressor(score=...)`; `LAW_MISMATCH` in `testing`; study TOML
+  validation with exit 2; missing libraries never checkpointed (`--allow-missing`);
+  report memoisation. The report files in `docs/results/default/` were rebuilt from
+  the committed `units.jsonl.gz`; no library unit was re-run, and no status or p-value
+  changed.
 
 Notes for whoever continues:
 
 - Rank tolerance is `1e-6 * max(1, |q|, scale)`, where scale is the magnitude of the
   endpoints. Float32 libraries need the scale term (`diagnostics.py`).
-- The oracle's size check is a binomial test on the exact two-sided mean-test
-  p-values. Do not KS-test the combined cell p-values, which are conservative by
-  construction.
+- The oracle's size check counts rejections of the exact two-sided mean test. It is
+  descriptive: alphas of a unit and reference rows on a dgp share draws, so do not put
+  a binomial or KS p-value on it. Do not KS-test the combined cell p-values either; they
+  are conservative by construction.
+- Coverage intervals are empirical t intervals. The law's variance is the null variance:
+  use it only for the MDE and the normal cross-check.
+- A documented row is excused only for the statuses in `report.DOCUMENTED_STATUSES`.
+- The `cls_gauss` classifier is anti-informative (top-1 accuracy 0.119). Laws hold for
+  any fixed model, but effect sizes of model-dependent findings (F1) are extreme on it.
+- `conformcheck run` refuses to start when a needed library is missing; use
+  `--libraries` or `--allow-missing`. Missing units are listed in `run.json`, never
+  written to `units.jsonl`.
 - `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
   message. An unexpected crash in a repro exits 2, never 1.
-- `conformcheck report` takes about 1.5 min on the default run (pure Python over
-  4330 cells).
+- `conformcheck report` takes about 15 s on the default run. Laws and convolution powers
+  are memoised (`stats.cached_convolution_power`, bounded at 512 MB).
+
+Open items from the review (not done):
+
+- No synthetic DGP with an informative classifier. Adding one (for example weights
+  aligned with `CLS_MEANS`) and re-running the APS units would show F1 on two synthetic
+  models; it changes the study fingerprint, so it needs a fresh run directory.
+- CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled in the
+  cell description and REPORT section 7); restricting them to n divisible by K would
+  change the default grid.
+- The repro scripts were not regenerated; they do not depend on the changed code.
 
 Next (not started):
 

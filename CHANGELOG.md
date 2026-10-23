@@ -3,6 +3,41 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Coverage intervals in reports are t intervals from the empirical spread of the counts.
+  They used the variance of the exact (null) law, which is the wrong spread in the
+  cells that are reported, and could extend past 1. They are now clipped to [0, 1].
+- The headline excuses a documented row only for its documented statuses; the default
+  study's headline is 15 of 31 rows (was 14).
+- The oracle size check reports the rejection count without a binomial p-value: the
+  cells share calibration draws, so they are not independent.
+- `check_split_regressor` no longer marks valid methods with a non-absolute-residual
+  score as FAIL. A new `score` argument (`"auto"`, `"abs"`, `"other"`) controls rank
+  recovery.
+- `testing` labels a rejection driven only by the goodness-of-fit test `LAW_MISMATCH`,
+  as the report does.
+- Study TOML files are validated on load (required keys, positive sizes, known DGPs,
+  grids and mutants, `n_folds` for CV+); errors exit with code 2, which the resume
+  wrapper does not retry.
+- Units of libraries that are not installed are no longer checkpointed as finished.
+  `conformcheck run` refuses to start without them unless `--libraries` or the new
+  `--allow-missing` is given; unknown names in `--libraries` are rejected.
+- The report memoises laws and convolution powers (about 5 times faster on the default
+  run) and orders cells deterministically.
+
+### Changed
+
+- REPORT.md: F1 reports the digits cells (over-coverage) beside the synthetic ones
+  (under-coverage), discloses that the synthetic classifier is anti-informative, and
+  marks hypothesis 3 as partly refuted. The section 2 table and the asymmetric CQR
+  over-refusal condition were corrected against the matrix.
+- The CV+ bound is flagged as extrapolated where K does not divide n.
+- README: the library extras are supported only through `uv sync --all-extras` in a
+  clone.
+
 ## [0.1.0] - 2026-10-23
 
 First release: the oracle, adapters for four libraries, the study pipeline and the

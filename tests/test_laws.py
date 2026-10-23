@@ -132,3 +132,8 @@ def test_split_count_law_matches_simulation() -> None:
     # Total variation distance between empirical and exact pmf is small.
     assert 0.5 * np.abs(observed - law.pmf).sum() < 0.03
     assert counts.mean() == pytest.approx(law.mean, abs=4 * math.sqrt(law.variance / reps))
+
+
+def test_cv_plus_bound_proven_only_for_equal_folds() -> None:
+    assert laws.cv_plus_bound_proven(20, 5) and laws.cv_plus_bound_proven(1000, 10)
+    assert not laws.cv_plus_bound_proven(19, 5) and not laws.cv_plus_bound_proven(999, 10)

@@ -17,7 +17,9 @@ repetitions with ``m`` test points each (docs/DESIGN.md, section 3.4).
 
 from __future__ import annotations
 
+import hashlib
 import math
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Literal
 
@@ -51,6 +53,31 @@ def convolution_power(pmf: ArrayLike, r: int) -> NDArray[np.float64]:
         base = _conv(base, base)
     assert result is not None
     return result
+
+
+# Cache of convolution powers keyed by (pmf digest, r). A report has thousands of exact
+# cells but only about a hundred distinct laws, and one convolution at R = 2000, m = 1000
+# takes about 0.4 s. Entries are read-only; the cache is bounded by total bytes.
+_CONV_CACHE: OrderedDict[tuple[str, int], NDArray[np.float64]] = OrderedDict()
+_CONV_CACHE_MAX_BYTES = 512 * 2**20
+
+
+def cached_convolution_power(pmf: ArrayLike, r: int) -> NDArray[np.float64]:
+    """:func:`convolution_power` memoised on the exact pmf bytes and ``r`` (LRU, by bytes)."""
+    arr = np.ascontiguousarray(pmf, dtype=float)
+    key = (hashlib.sha1(arr.tobytes()).hexdigest() + f":{arr.size}", int(r))
+    hit = _CONV_CACHE.get(key)
+    if hit is not None:
+        _CONV_CACHE.move_to_end(key)
+        return hit
+    out = convolution_power(arr, r)
+    out.setflags(write=False)
+    _CONV_CACHE[key] = out
+    total = sum(v.nbytes for v in _CONV_CACHE.values())
+    while total > _CONV_CACHE_MAX_BYTES and len(_CONV_CACHE) > 1:
+        _, old = _CONV_CACHE.popitem(last=False)
+        total -= old.nbytes
+    return out
 
 
 def _conv(a: NDArray[np.float64], b: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -100,7 +127,7 @@ def mean_test(
         if var <= 1e-15:  # point mass, e.g. a required trivial set
             p = 1.0 if math.isclose(t, expected, abs_tol=1e-9) else 0.0
             return MeanTest(p, t, expected, 0.0 if p else math.inf, _direction(t, expected), p)
-        conv = convolution_power(law.pmf, r)
+        conv = cached_convolution_power(law.pmf, r)
         ti = int(round(t))
         cdf = float(conv[: ti + 1].sum())
         sf = float(conv[ti:].sum())
@@ -256,23 +283,23 @@ def benjamini_yekutieli(pvalues: ArrayLike, level: float = 0.05) -> Adjusted:
 def coverage_interval(
     counts: ArrayLike, m: int, law: CoverageLaw | None = None, level: float = 0.95
 ) -> tuple[float, float, float]:
-    """Observed mean coverage and a ``level`` interval for it.
+    """Observed mean coverage and a ``level`` t interval for it, clipped to ``[0, 1]``.
 
-    With an exact law the interval uses the exact variance of ``S`` (a normal interval
-    around the observed mean); otherwise a t interval with the empirical variance.
+    The interval always uses the empirical variance of the counts. The variance of a
+    cell's exact law is the variance *under the null*; in the cells where an interval
+    matters (the null is false) it is the wrong spread, so it is used only for the
+    minimum detectable effect and the normal cross-check of the mean test. ``law`` is
+    accepted for backwards compatibility and ignored.
     """
+    del law
     s = np.asarray(counts, dtype=float)
     r = s.size
     mean = float(s.mean() / m)
-    if law is not None and law.kind == "exact" and law.variance is not None:
-        se = math.sqrt(law.variance / r) / m
-        z = float(stats.norm.ppf(0.5 + level / 2))
-    else:
-        if r < 2:
-            return mean, mean, mean
-        se = float(np.std(s, ddof=1)) / math.sqrt(r) / m
-        z = float(stats.t.ppf(0.5 + level / 2, df=r - 1))
-    return mean, mean - z * se, mean + z * se
+    if r < 2:
+        return mean, mean, mean
+    se = float(np.std(s, ddof=1)) / math.sqrt(r) / m
+    z = float(stats.t.ppf(0.5 + level / 2, df=r - 1))
+    return mean, max(0.0, mean - z * se), min(1.0, mean + z * se)
 
 
 def min_detectable_effect(law: CoverageLaw, reps: int, z_crit: float) -> float | None:

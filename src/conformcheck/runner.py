@@ -8,6 +8,9 @@
 * The parent process is the only writer: each finished unit is appended as one JSON
   line to ``units.jsonl`` (flushed and fsynced); a rerun skips unit ids already present.
 * Progress (done/total, rate, ETA) is appended to ``progress.log`` after every unit.
+* Units whose library is not installed are never checkpointed. By default the run is
+  refused (:class:`MissingLibraries`); with ``allow_missing=True`` they are left out of
+  the run, listed in ``run.json`` and in the report, and run later once installed.
 """
 
 from __future__ import annotations
@@ -133,7 +136,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
         "reps": reps,
         "seed": seed,
     }
-    if not adapter.available():
+    if not adapter.available():  # run_study filters these out; never checkpointed
         record.update(status="unavailable", alphas_out={})
         return record
 
@@ -348,7 +351,8 @@ def load_done(path: Path) -> dict[str, dict[str, Any]]:
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if "uid" in rec:
+        # "unavailable" records (written by older versions) are not finished units
+        if "uid" in rec and rec.get("status") != "unavailable":
             done[rec["uid"]] = rec
     return done
 
@@ -386,6 +390,23 @@ class FingerprintMismatch(RuntimeError):
     pass
 
 
+class MissingLibraries(RuntimeError):
+    """Requested libraries under test are not installed."""
+
+    def __init__(self, missing: list[str]) -> None:
+        self.missing = missing
+        super().__init__(
+            f"not installed: {', '.join(missing)}. Install them (uv sync --all-extras), "
+            "restrict the run with --libraries, or pass --allow-missing to run without them"
+        )
+
+
+def known_libraries() -> set[str]:
+    from conformcheck.adapters import registry
+
+    return {ad.spec.library for ad in registry().values()}
+
+
 def run_study(
     study: Study,
     out_dir: str | Path,
@@ -394,8 +415,20 @@ def run_study(
     libraries: set[str] | None = None,
     max_units: int | None = None,
     echo: Callable[[str], None] | None = print,
+    allow_missing: bool = False,
 ) -> dict[str, Any]:
-    """Run (or resume) ``study`` into ``out_dir``. Returns a small summary."""
+    """Run (or resume) ``study`` into ``out_dir``. Returns a small summary.
+
+    Raises ``ValueError`` for unknown names in ``libraries`` and :class:`MissingLibraries`
+    when a library the run needs is not installed, unless ``allow_missing``.
+    """
+    from conformcheck.adapters import registry
+
+    if libraries is not None:
+        unknown = sorted(set(libraries) - known_libraries())
+        if unknown:
+            raise ValueError(f"unknown libraries {unknown}; known: {sorted(known_libraries())}")
+    reg = registry()
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     units_path, progress, meta_path = out / "units.jsonl", out / "progress.log", out / "run.json"
@@ -408,7 +441,13 @@ def run_study(
                 f"{meta_path} has fingerprint {old.get('fingerprint')}, this run {fp}; "
                 "use a new --out directory or --force"
             )
-    units = enumerate_units(study, libraries=libraries)
+    all_units = enumerate_units(study, libraries=libraries)
+    available = {key: ad.available() for key, ad in reg.items()}
+    missing = sorted({reg[u.adapter].spec.library for u in all_units if not available[u.adapter]})
+    if missing and not allow_missing:
+        raise MissingLibraries(missing)
+    units = [u for u in all_units if available[u.adapter]]
+    skipped_units = len(all_units) - len(units)
     uid_of = {u.uid(study): u for u in units}
     done = load_done(units_path)
     todo = [u for uid, u in uid_of.items() if uid not in done]
@@ -425,6 +464,8 @@ def run_study(
         "processor": platform.processor(),
         "workers": workers,
         "units_total": len(uid_of),
+        "missing_libraries": missing,
+        "units_skipped_missing": skipped_units,
         "started": dt.datetime.now().isoformat(timespec="seconds"),
     }
     if meta_path.exists():
@@ -439,6 +480,11 @@ def run_study(
         progress,
         f"start fingerprint={fp} total={total} done={n_done} todo={len(todo)} workers={workers}",
     )
+    if missing:
+        msg = f"warning: {skipped_units} units skipped, not installed: {', '.join(missing)}"
+        _log(progress, msg)
+        if echo:
+            echo(msg)
     if echo:
         echo(f"{len(todo)} units to run ({n_done}/{total} already done), {workers} workers")
     cfg = {"reps": study.reps, "test_points": study.test_points, "seed": study.seed}
@@ -453,6 +499,10 @@ def run_study(
             _log(progress, f"unit-error {u.adapter} {u.dgp} n={u.n}: {type(exc).__name__}: {exc}")
             return
         assert rec is not None
+        if rec.get("status") != "done":  # e.g. a library that vanished mid-run
+            errors += 1
+            _log(progress, f"unit-not-done {u.adapter} {u.dgp} n={u.n}: {rec.get('status')}")
+            return
         rec["uid"] = u.uid(study)
         _append(units_path, rec)
         finished += 1
@@ -488,7 +538,7 @@ def run_study(
                     exc = f.exception()
                     handle(u, None if exc else f.result(), exc)
     elapsed = time.perf_counter() - t0
-    all_done = len(load_done(units_path))
+    all_done = len(set(load_done(units_path)) & set(uid_of))
     _log(
         progress,
         f"end finished={finished} errors={errors} done={all_done}/{total} "
@@ -503,6 +553,8 @@ def run_study(
         "finished": finished,
         "errors": errors,
         "elapsed_s": elapsed,
+        "missing_libraries": missing,
+        "units_skipped_missing": skipped_units,
     }
 
 

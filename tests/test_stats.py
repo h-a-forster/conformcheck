@@ -202,3 +202,29 @@ def test_t_tests_with_zero_variance() -> None:
     law = CoverageLaw("mean", 50, 0.9)
     assert stats.mean_test(np.full(20, 45), law).pvalue == 1.0
     assert stats.mean_test(np.full(20, 50), law).pvalue == 0.0
+
+
+def test_coverage_interval_uses_empirical_spread_and_stays_in_unit_interval() -> None:
+    # Audit finding: with an exact law the interval used the law's (null) variance, which
+    # is the wrong spread exactly where the null is false, and could exceed 1.
+    law = laws.split_count_law(19, 0.1, 100)
+    rng = np.random.default_rng(5)
+    s = rng.binomial(100, 0.55, size=200)  # far from the law, much tighter spread
+    mean, lo, hi = stats.coverage_interval(s, 100, law)
+    se = np.std(s, ddof=1) / np.sqrt(200) / 100
+    half = sps.t.ppf(0.975, 199) * se
+    assert mean == pytest.approx(s.mean() / 100)
+    assert hi - mean == pytest.approx(half) and mean - lo == pytest.approx(half)
+    assert (lo, hi) == stats.coverage_interval(s, 100)[1:]
+    s = np.array([100] * 199 + [99])
+    _, lo, hi = stats.coverage_interval(s, 100)
+    assert hi <= 1.0 and lo < 1.0
+
+
+def test_cached_convolution_power_matches_and_is_reused() -> None:
+    pmf = sps.betabinom.pmf(np.arange(51), 50, 18, 2)
+    a = stats.cached_convolution_power(pmf, 37)
+    b = stats.cached_convolution_power(pmf.copy(), 37)
+    assert a is b and not a.flags.writeable
+    assert np.allclose(a, stats.convolution_power(pmf, 37), atol=1e-15)
+    assert stats.cached_convolution_power(pmf, 38) is not a

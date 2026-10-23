@@ -125,3 +125,51 @@ def test_is_trivial_and_compare() -> None:
         diagnostics.compare_to_reference(np.ones((2, 2), bool), np.eye(2, dtype=bool), "sets")
         == 0.5
     )
+
+
+def normalized_split(x_cal, y_cal, x_test, alpha, model):  # type: ignore[no-untyped-def]
+    """A valid split method with the normalised score |y - f(x)| / (1 + |x0|)."""
+    sig_cal = 1.0 + np.abs(x_cal[:, 0])
+    sig_test = 1.0 + np.abs(x_test[:, 0])
+    scores = np.sort(np.abs(y_cal - model.predict(x_cal)) / sig_cal)
+    n = len(scores)
+    k = math.ceil((n + 1) * (1 - Fraction(repr(alpha))))
+    q = math.inf if k > n else scores[k - 1]
+    f = model.predict(x_test)
+    return np.column_stack([f - q * sig_test, f + q * sig_test])
+
+
+def test_check_split_regressor_other_score_is_not_a_false_positive() -> None:
+    # Audit finding: rank recovery assumed the absolute-residual score, so a correct
+    # normalised-residual method was marked FAIL.
+    auto = check_split_regressor(normalized_split, n=(19, 99), alpha=0.1, reps=50, test_points=100)
+    assert auto.ok, auto.summary()
+    assert all(c.rank_skipped == 50 and not c.rank_offsets for c in auto.cells)
+    other = check_split_regressor(
+        normalized_split, n=19, alpha=0.1, reps=20, test_points=50, score="other"
+    )
+    assert other.ok and not other.cells[0].rank_offsets
+    forced = check_split_regressor(
+        normalized_split, n=19, alpha=0.1, reps=20, test_points=50, score="abs"
+    )
+    assert not forced.ok  # forcing the wrong score is the caller's choice
+    # the absolute-residual reference still gets rank recovery under "auto"
+    ref = check_split_regressor(good_split, n=19, alpha=0.1, reps=10, test_points=50)
+    assert ref.cells[0].rank_offsets == {0: 10} and ref.cells[0].rank_skipped == 0
+    with pytest.raises(ValueError, match="score"):
+        check_split_regressor(good_split, n=19, alpha=0.1, reps=2, score="bogus")  # type: ignore[arg-type]
+
+
+def test_finish_labels_gof_only_rejections_law_mismatch() -> None:
+    from conformcheck.testing import CheckCell, _finish
+
+    def cell(p_mean: float, p_gof: float, coverage: float) -> CheckCell:
+        c = CheckCell(19, Fraction(1, 10), 18, coverage, 0.9, None)
+        c.p_mean, c.p_gof = p_mean, p_gof
+        c.p_value = min(1.0, 2 * min(p_mean, p_gof))
+        return c
+
+    cells = [cell(0.4, 1e-12, 0.901), cell(1e-12, 0.5, 0.85), cell(1e-12, 0.5, 0.95)]
+    rep = _finish("x", cells, 10, 50, 0.05)
+    assert [c.status for c in rep.cells] == ["LAW_MISMATCH", "FAIL", "CONSERVATIVE"]
+    assert rep.failures(allow_conservative=True) == [rep.cells[0], rep.cells[1]]

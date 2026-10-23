@@ -202,3 +202,107 @@ def test_cli_plan_and_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str])
     assert cli.main(["plan", "--study", "missing-study", "--no-probe"]) == 2
     assert cli.main(["report", str(tmp_path)]) == 2
     assert cli.main(["repro", str(tmp_path)]) == 2
+
+
+def _write(tmp_path: Path, text: str, name: str = "s.toml") -> Path:
+    p = tmp_path / name
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "match"),
+    [
+        ('dgps = ["reg_gauss", "cls_gauss"]', 'dgps = ["reg_gaus"]', "unknown dgp"),
+        ("reps = 60\n", "", "missing required key"),
+        ("reps = 60", "reps = 0", "reps must be a positive integer"),
+        ("test_points = 60", "test_points = 0", "test_points"),
+        ("n = [9, 19]", "n = [0, 19]", "n must be a positive integer"),
+        ('mutants = ["k_plus_1", "k_minus_1"]', 'mutants = ["k_plus_2"]', "unknown mutant"),
+        ("n_folds = [5]\n", "", "n_folds"),
+        ('alphas = ["0.1", "0.2"]', 'alphas = ["1.5"]', "alpha must lie in"),
+        ('dgps = ["reg_constant"]', 'dgps = ["cls_gauss"]', "has no methods on grid"),
+    ],
+)
+def test_load_study_validates(tmp_path: Path, old: str, new: str, match: str) -> None:
+    # Audit finding: bad configs used to crash later (exit 1, retried) or run 0 cells.
+    assert old in TOML
+    p = _write(tmp_path, TOML.replace(old, new, 1))
+    with pytest.raises(ValueError, match=match):
+        study.load_study(p)
+    assert cli.main(["run", "--study", str(p), "--out", str(tmp_path / "o")]) == 2
+    assert cli.main(["plan", "--study", str(p), "--no-probe"]) == 2
+
+
+def test_cli_rejects_unknown_library(tmp_path: Path) -> None:
+    p = _write(tmp_path, TOML)
+    out = tmp_path / "o"
+    assert cli.main(["run", "--study", str(p), "--out", str(out), "--libraries", "mapei"]) == 2
+    assert not (out / "units.jsonl").exists()
+
+
+def test_missing_libraries_are_not_checkpointed(
+    tiny: study.Study, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Audit finding: unavailable units were checkpointed as finished, so a core-only
+    # run looked complete and the units were skipped forever after installing.
+    from conformcheck.adapters._common import LibraryAdapter
+    from conformcheck.runner import MissingLibraries
+
+    real = LibraryAdapter.available
+    monkeypatch.setattr(
+        LibraryAdapter, "available", lambda self: self.spec.library != "mapie" and real(self)
+    )
+    out = tmp_path / "run"
+    with pytest.raises(MissingLibraries, match="mapie"):
+        run_study(tiny, out, workers=1, libraries={"reference", "mapie"}, echo=None)
+    p = _write(tmp_path, TOML)
+    args = ["run", "--study", str(p), "--out", str(out), "--libraries", "mapie"]
+    assert cli.main(args) == 2
+    res = run_study(
+        tiny, out, workers=1, libraries={"reference", "mapie"}, allow_missing=True, echo=None
+    )
+    assert res["missing_libraries"] == ["mapie"] and res["units_skipped_missing"] > 0
+    assert res["done"] == res["total"]
+    recs = load_done(out / "units.jsonl")
+    assert recs and all(r["library"] == "reference" for r in recs.values())
+    meta = json.loads((out / "run.json").read_text(encoding="utf-8"))
+    assert meta["missing_libraries"] == ["mapie"]
+    assert "mapie" in (write_report(out)["run"]["missing_libraries"])
+    # legacy "unavailable" records do not count as finished units
+    with (out / "units.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"uid": "legacy", "status": "unavailable"}) + "\n")
+    assert "legacy" not in load_done(out / "units.jsonl")
+
+
+def test_headline_excuses_only_documented_statuses() -> None:
+    # Audit finding: a documented row was dropped from the headline whatever its status.
+    from conformcheck.report import RowSummary, headline_counts
+
+    row = "mapie/aps/include_last_label=True"
+
+    def rs(small: str, undoc: str) -> RowSummary:
+        return RowSummary(
+            row, "mapie", "aps", "x", 1, small, "-", {}, documented="doc",
+            small_n_undocumented=undoc,
+        )  # fmt: skip
+
+    assert headline_counts([rs("CONSERVATIVE", "PASS")])["rows_small_n_flagged"] == 0
+    assert headline_counts([rs("ERROR", "ERROR")])["flagged_rows"] == [row]
+
+
+def test_summarize_rows_documented_status() -> None:
+    from conformcheck.report import Cell, summarize_rows
+
+    def cell(status: str, n: int = 9) -> Cell:
+        c = Cell(
+            "mapie/aps/include_last_label=True", "mapie", "aps", "include_last_label=True",
+            "cls_gauss", "split", n, None, "1/10", 9, 50, 10, "exact", 0.9, 10, 0, 0,
+        )  # fmt: skip
+        c.status = status
+        return c
+
+    (r,) = summarize_rows([cell("CONSERVATIVE"), cell("PASS")])
+    assert r.small_n_status == "CONSERVATIVE" and r.small_n_undocumented == "PASS"
+    (r,) = summarize_rows([cell("CONSERVATIVE"), cell("OVER_REFUSED"), cell("ERROR", 1000)])
+    assert r.small_n_undocumented == "OVER_REFUSED"
