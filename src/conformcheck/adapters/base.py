@@ -99,6 +99,7 @@ class ClassificationInput:
     proba_test: NDArray[np.float64]
     n_classes: int
     seed: int = 0
+    per_class: bool = False  # True for Mondrian cells: n is the per-class size
 
 
 @dataclass

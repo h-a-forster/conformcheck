@@ -261,9 +261,10 @@ DGPS: dict[str, DGP] = {
     "reg_constant": DGP("reg_constant", "regression", description="reg_gauss, constant model"),
     "cls_gauss": DGP("cls_gauss", "classification", n_classes=4, description="4 Gaussians"),
     "diabetes": DGP("diabetes", "regression", pool_size=342, description="sklearn diabetes"),
-    "digits": DGP("digits", "classification", n_classes=10, pool_size=1297,
-                  description="sklearn digits"),
-}  # fmt: skip
+    "digits": DGP(
+        "digits", "classification", n_classes=10, pool_size=1297, description="sklearn digits"
+    ),
+}
 
 
 def get_dgp(name: str) -> DGP:
