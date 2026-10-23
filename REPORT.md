@@ -84,7 +84,7 @@ copied from [matrix.md](docs/results/default/matrix.md).
 
 | Row | Small n | Large n | What |
 |---|---|---|---|
-| `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.53-0.57 on `cls_gauss` at every n and alpha (FAIL), 0.96-0.97 on digits (CONSERVATIVE) (F1); also F4 and F7 |
+| `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.52-0.57 on `cls_gauss` at every n and alpha (FAIL), 0.96-0.97 on digits (CONSERVATIVE) (F1); also F4 and F7 |
 | `mapie/aps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.971 vs 0.900 at n = 1000); also crashes (F7) and refuses feasible levels (F4), which are not documented |
 | `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | exact where it runs; crashes when a class is missing from a small calibration set (F7); F4 |
 | `mapie/split_abs/default`, `mapie/lac/default`, `mapie/cqr/symmetric` | OVER_REFUSED | OVER_REFUSED | raises for alpha in [1/(n+1), 1/n) (F4) |
@@ -172,7 +172,7 @@ On the digits data, with an accurate model, it over-covers in all 8 cells:
 | 99 | 0.2 | 0.800 | 0.959 [0.958, 0.960] | 0 |
 
 All 25 FAIL cells (all on `cls_gauss`) have Holm p = 0 at double precision. There,
-coverage is about 0.53-0.57 whatever the target, from n = 10 to n = 1000. On digits it
+coverage is about 0.52-0.57 whatever the target, from n = 10 to n = 1000. On digits it
 is about 0.96-0.97 whatever the target. Neither moves with n or alpha, so this is not a
 finite-sample effect: the coverage is set by the model, not by the order statistic.
 

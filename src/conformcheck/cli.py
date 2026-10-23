@@ -53,7 +53,12 @@ def _cmd_plan(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    from conformcheck.runner import FingerprintMismatch, MissingLibraries, run_study
+    from conformcheck.runner import (
+        FingerprintMismatch,
+        MissingLibraries,
+        known_libraries,
+        run_study,
+    )
 
     try:
         study = load_study(args.study, reps=args.reps)
@@ -63,6 +68,14 @@ def _cmd_run(args: argparse.Namespace) -> int:
     libs = None
     if args.libraries:
         libs = {x.strip() for x in args.libraries.split(",") if x.strip()} | {"reference"}
+    if libs is not None:
+        unknown = sorted(libs - known_libraries())
+        if unknown:
+            print(
+                f"error: unknown libraries {unknown}; known: {sorted(known_libraries())}",
+                file=sys.stderr,
+            )
+            return 2
     try:
         res = run_study(
             study,
@@ -72,7 +85,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             libraries=libs,
             allow_missing=args.allow_missing,
         )
-    except (FingerprintMismatch, MissingLibraries, ValueError, KeyError) as exc:
+    except (FingerprintMismatch, MissingLibraries) as exc:
         # configuration problems: exit 2 so the resume wrapper does not retry them
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -91,6 +104,12 @@ def _cmd_report(args: argparse.Namespace) -> int:
     run = Path(args.run_dir)
     if not (run / "run.json").exists():
         print(f"error: {run} has no run.json", file=sys.stderr)
+        return 2
+    if not any((run / n).exists() for n in ("units.jsonl", "units.jsonl.gz")):
+        print(
+            f"error: {run} has no units.jsonl (or units.jsonl.gz); nothing to report",
+            file=sys.stderr,
+        )
         return 2
     payload = write_report(run, args.out)
     h = payload["headline"]

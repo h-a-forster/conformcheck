@@ -140,8 +140,8 @@ def normalized_split(x_cal, y_cal, x_test, alpha, model):  # type: ignore[no-unt
 
 
 def test_check_split_regressor_other_score_is_not_a_false_positive() -> None:
-    # Audit finding: rank recovery assumed the absolute-residual score, so a correct
-    # normalised-residual method was marked FAIL.
+    # Rank recovery must not assume the absolute-residual score; a correct
+    # normalised-residual method must not be marked FAIL.
     auto = check_split_regressor(normalized_split, n=(19, 99), alpha=0.1, reps=50, test_points=100)
     assert auto.ok, auto.summary()
     assert all(c.rank_skipped == 50 and not c.rank_offsets for c in auto.cells)

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import json
 import math
 import os
@@ -343,7 +344,12 @@ def load_done(path: Path) -> dict[str, dict[str, Any]]:
     done: dict[str, dict[str, Any]] = {}
     if not path.exists():
         return done
-    for line in path.read_text(encoding="utf-8").splitlines():
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            text = fh.read()
+    else:
+        text = path.read_text(encoding="utf-8")
+    for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
@@ -559,4 +565,7 @@ def run_study(
 
 
 def iter_records(run_dir: str | Path) -> Iterable[dict[str, Any]]:
-    yield from load_done(Path(run_dir) / "units.jsonl").values()
+    """Checkpointed records of a run; reads ``units.jsonl`` or, failing that, ``units.jsonl.gz``."""
+    run = Path(run_dir)
+    plain, gz = run / "units.jsonl", run / "units.jsonl.gz"
+    yield from load_done(gz if not plain.exists() and gz.exists() else plain).values()

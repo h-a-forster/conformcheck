@@ -225,7 +225,7 @@ def _write(tmp_path: Path, text: str, name: str = "s.toml") -> Path:
     ],
 )
 def test_load_study_validates(tmp_path: Path, old: str, new: str, match: str) -> None:
-    # Audit finding: bad configs used to crash later (exit 1, retried) or run 0 cells.
+    # Invalid configs must fail at load time (exit 2, not retried), never run 0 cells.
     assert old in TOML
     p = _write(tmp_path, TOML.replace(old, new, 1))
     with pytest.raises(ValueError, match=match):
@@ -244,8 +244,8 @@ def test_cli_rejects_unknown_library(tmp_path: Path) -> None:
 def test_missing_libraries_are_not_checkpointed(
     tiny: study.Study, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Audit finding: unavailable units were checkpointed as finished, so a core-only
-    # run looked complete and the units were skipped forever after installing.
+    # Units of libraries that are not installed must not be checkpointed as finished, so
+    # a core-only run does not look complete and the units still run once installed.
     from conformcheck.adapters._common import LibraryAdapter
     from conformcheck.runner import MissingLibraries
 
@@ -276,7 +276,7 @@ def test_missing_libraries_are_not_checkpointed(
 
 
 def test_headline_excuses_only_documented_statuses() -> None:
-    # Audit finding: a documented row was dropped from the headline whatever its status.
+    # A documented row is excused from the headline only for its documented statuses.
     from conformcheck.report import RowSummary, headline_counts
 
     row = "mapie/aps/include_last_label=True"
@@ -306,3 +306,42 @@ def test_summarize_rows_documented_status() -> None:
     assert r.small_n_status == "CONSERVATIVE" and r.small_n_undocumented == "PASS"
     (r,) = summarize_rows([cell("CONSERVATIVE"), cell("OVER_REFUSED"), cell("ERROR", 1000)])
     assert r.small_n_undocumented == "OVER_REFUSED"
+
+
+def test_report_requires_units_and_reads_gzip(tmp_path: Path) -> None:
+    import gzip
+    import shutil
+
+    # a run directory without any units file is an error, not an empty "0 units" report
+    (tmp_path / "run.json").write_text("{}", encoding="utf-8")
+    assert cli.main(["report", str(tmp_path)]) == 2
+    assert not (tmp_path / "report").exists()
+
+    # a gzip-compressed units file is read transparently
+    p = _write(tmp_path, TOML)
+    src, dst = tmp_path / "src", tmp_path / "gz"
+    assert cli.main(["run", "--study", str(p), "--out", str(src), "--libraries", "reference"]) == 0
+    dst.mkdir()
+    shutil.copy(src / "run.json", dst / "run.json")
+    with (src / "units.jsonl").open("rb") as fi, gzip.open(dst / "units.jsonl.gz", "wb") as fo:
+        shutil.copyfileobj(fi, fo)
+    assert cli.main(["report", str(dst)]) == 0
+    assert cli.main(["report", str(src)]) == 0
+    assert (dst / "report" / "cells.csv").read_bytes() == (
+        src / "report" / "cells.csv"
+    ).read_bytes()
+
+
+def test_cli_run_runtime_errors_are_not_config_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only config problems exit 2 (the resume wrapper stops); a runtime ValueError propagates.
+    from conformcheck import runner
+
+    def boom(*a: object, **k: object) -> None:
+        raise ValueError("runtime failure")
+
+    monkeypatch.setattr(runner, "run_study", boom)
+    p = _write(tmp_path, TOML)
+    with pytest.raises(ValueError, match="runtime failure"):
+        cli.main(["run", "--study", str(p), "--out", str(tmp_path / "o")])

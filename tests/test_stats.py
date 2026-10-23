@@ -205,8 +205,8 @@ def test_t_tests_with_zero_variance() -> None:
 
 
 def test_coverage_interval_uses_empirical_spread_and_stays_in_unit_interval() -> None:
-    # Audit finding: with an exact law the interval used the law's (null) variance, which
-    # is the wrong spread exactly where the null is false, and could exceed 1.
+    # With an exact law the interval must use the empirical spread (not the law's null
+    # variance) and stay within [0, 1].
     law = laws.split_count_law(19, 0.1, 100)
     rng = np.random.default_rng(5)
     s = rng.binomial(100, 0.55, size=200)  # far from the law, much tighter spread
