@@ -104,9 +104,9 @@ copied from [matrix.md](docs/results/default/matrix.md).
 |---|---|---|---|
 | `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.52-0.57 on `cls_gauss`, 0.74-0.87 on `cls_gauss_inf` (FAIL), 0.96-0.97 on digits (CONSERVATIVE) (F1); also F4 and F7 |
 | `mapie/aps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.971 vs 0.900 at n = 1000); also crashes (F7) and refuses feasible levels (F4), which are not documented |
-| `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | exact where it runs; crashes when a class is missing from a small calibration set (F7); F4 |
+| `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | matches the exact law where it runs (not rejected; see the uniform-reuse caveat in section 7); crashes when a class is missing from a small calibration set (F7); F4 |
 | `mapie/raps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.961 vs 0.900 at n = 1000 on `cls_gauss_inf`); raises at n <= 20 with 4 classes and refuses feasible levels (F9) |
-| `mapie/raps/include_last_label=randomized` | ERROR | REFUSED | exact where it runs, at its effective calibration size; raises at small n and refuses feasible levels (F9) |
+| `mapie/raps/include_last_label=randomized` | ERROR | REFUSED | matches the exact law at its effective calibration size where it runs (not rejected; two caveats in section 7); raises at small n and refuses feasible levels (F9) |
 | `mapie/split_abs/default`, `mapie/lac/default`, `mapie/cqr/symmetric` | OVER_REFUSED | OVER_REFUSED | raises for alpha in [1/(n+1), 1/n) (F4) |
 | `mapie/cqr/asymmetric` | OVER_REFUSED | REFUSED | raises when n < 2/alpha although the per-side index k' <= n: 5 cells, at n = 9, alpha = 0.2 and n = 19, alpha = 0.1 (F4) |
 | `mapie/cv_plus/K=5`, `K=10` | PASS | CONSERVATIVE | lower endpoint one order statistic too high at n = 999, alpha = 0.05 (F5) |
@@ -187,7 +187,7 @@ covered counts. Holm p-values are adjusted over all 4348 statistical cells.
 ### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
 
 On the synthetic `cls_gauss` data (anti-informative classifier, see below) it
-under-covers by 0.25-0.38:
+under-covers by 0.27-0.39 (target minus coverage over its 25 FAIL cells):
 
 | n | alpha | Exact | Observed [95% CI] |
 |---|---|---|---|
@@ -211,7 +211,7 @@ On the digits data (top-1 accuracy about 0.96) it over-covers in all 8 cells:
 
 | n | alpha | Exact | Observed [95% CI] | Holm p |
 |---|---|---|---|---|
-| 10 | 0.2 | 0.818 | 0.964 [0.962, 0.966] | 3e-303 |
+| 10 | 0.2 | 0.818 | 0.964 [0.962, 0.966] | 4e-303 |
 | 19 | 0.1 | 0.900 | 0.974 [0.972, 0.976] | 2e-121 |
 | 50 | 0.1 | 0.902 | 0.972 [0.971, 0.974] | 0 |
 | 99 | 0.2 | 0.800 | 0.959 [0.958, 0.960] | 0 |
@@ -294,8 +294,8 @@ The over-coverage is 1/(n+1). Examples:
 
 | n | alpha | Exact | Observed [95% CI] | Holm p |
 |---|---|---|---|---|
-| 19 | 0.1 | 0.900 | 0.949 [0.943, 0.956] | 2e-43 |
-| 9 | 0.2 | 0.800 | 0.901 [0.886, 0.915] | 4e-64 |
+| 19 | 0.1 | 0.900 | 0.949 [0.943, 0.956] | 3e-43 |
+| 9 | 0.2 | 0.800 | 0.901 [0.886, 0.915] | 6e-64 |
 | 999 | 0.1 | 0.900 | 0.903 [0.900, 0.905] | 1 (rank recovery only) |
 
 The cells are flagged as CONSERVATIVE, not FAIL: the intervals remain valid but are
@@ -317,20 +317,38 @@ the same integer boundaries. Examples on the synthetic data:
 
 On the digits data at n = 19, alpha = 0.1, `crepes/lac/unsmoothed` gives 0.948.
 
+**Mechanism.** The unsmoothed set is `{y : p(y) >= 1 - confidence}`, computed in
+floating point, with the non-randomized p-value `p = (#{s_i >= s} + 1)/(n + 1)`. In
+exact arithmetic, wherever `(n + 1) alpha` is an integer, `p >= alpha` keeps every label
+whose score is at most the (k+1)-th smallest calibration score, one more than the law's
+k-th. In floating point the comparison is against `1 - confidence`, and which boundary
+cells are affected depends on how that rounds:
+
+- `1 - 0.9 = 0.09999999999999998` and `1 - 0.8 = 0.19999999999999996` fall below alpha,
+  so the boundary cells at alpha = 0.1 and 0.2 (n = 9, 19, 49, 99, 999) use k + 1.
+- `1 - 0.95 = 0.050000000000000044` lies above 0.05, which excludes the p-values that sit
+  exactly at 0.05. The boundary cells at alpha = 0.05 (n = 19, 99, 999) therefore use
+  the correct k and PASS, with bracketing offset 0 in every draw. Exact arithmetic would
+  affect them too.
+- At the edge level alpha = 1/(n+1) (k = n), `1 - confidence` falls below alpha at
+  n = 5, 9 and 1000 in this grid, and those cells use k + 1. At the other n it lies
+  above, and the cells PASS.
+
+So the flagged cells are decided by floating-point rounding, as in F2, on top of the
+non-strict inequality. The smoothed rows pass every cell, for example 0.900 at n = 999,
+alpha = 0.1.
+
 **Bracketing (round 2).** The order statistic is now also read off the sets. It is
-k + 1 at exactly the boundary cells and nowhere else, on all three classification
-datasets:
+k + 1 in exactly the cells the mechanism above predicts, and 0 in every draw elsewhere:
 
-- in 183 to 200 of 200 draws at n <= 99 (per class for the class-conditional row);
+- in 168 to 200 of 200 draws at n <= 99 (per class for the class-conditional row). The
+  lowest counts are on digits at n = 99 (168 at alpha = 0.2, 182 at alpha = 0.1); the
+  synthetic datasets give 183 to 200.
 - in 94 to 147 of 200 draws at n = 999, alpha in {0.1, 0.2}, where the statistical test
-  has no power (Holm p = 1; for example 0.8996 against 0.9000 on `cls_gauss`). The other
-  draws show no offset because no test score fell between the two order statistics, not
-  because the right one was used.
-
-The unsmoothed set is `{y : p(y) >= 1 - confidence}` with a non-randomized p-value. At
-an integer boundary this includes the (k+1)-th statistic, so the effect would remain
-even in exact arithmetic. This is DESIGN hypothesis 2. The smoothed rows pass every
-cell, for example 0.900 at n = 999, alpha = 0.1.
+  has no power (Holm p = 1; for example 0.8996 against 0.9000 on `cls_gauss`), and in
+  116 and 200 of 200 at the edge level n = 1000 on `cls_gauss` and `cls_gauss_inf`. The
+  other draws show no offset because no test score fell between the two order
+  statistics, not because the right one was used.
 
 Repro: `crepes__lac__unsmoothed__coverage.py` (n = 9, alpha = 0.2).
 
@@ -341,8 +359,11 @@ MAPIE's split regressor, LAC and APS classifiers and symmetric CQR raise ValueEr
 samples") at alpha = 1/(n+1). That level has `k = n`, and a finite valid set exists. The
 cause is a check that requires `n >= 1/alpha` rather than `(n+1)(1-alpha) <= n`.
 
-For these rows this is OVER_REFUSED at alpha = 1/(n+1) at every n from 5 to 1000. It is
-not unsafe, but the user gets no set at all.
+For the split regressor, LAC and symmetric CQR this is OVER_REFUSED at alpha = 1/(n+1)
+at every n from 5 to 1000. The three APS rows are OVER_REFUSED there from n = 10 to
+1000. At n = 5 and 9, and at n = 10 on one of the two synthetic DGPs, the APS cell is
+ERROR instead, because the crash of F7 is the more severe status. The refusal is not
+unsafe, but the user gets no set at all.
 
 The asymmetric CQR variant is different. It applies the check to alpha/2, so it raises
 whenever n < 2/alpha. At alpha = 1/(n+1) the per-side index k' exceeds n, so its
@@ -454,8 +475,10 @@ Consequences seen in the study:
   10 digits classes at n <= 50. These exceptions come from scikit-learn and do not name
   the cause in MAPIE's terms; the matrix records them as ERROR (52 cells per row).
 - **It refuses levels that are feasible.** MAPIE's level check runs on the hold-out
-  size: it requires `1/alpha <= ceil(0.1 n)`. At n = 49 and 50 that refuses alpha = 0.1
-  and 0.05, although `k_eff <= n_eff` (OVER_REFUSED, 12 cells per row).
+  size: it requires `1/alpha <= ceil(0.1 n)`. That refuses alpha = 0.1 and 0.05 at
+  n = 49 and 50, and alpha = 0.05 at n = 99 and 100, although `k_eff <= n_eff`. These
+  are 12 OVER_REFUSED cells per row on the two synthetic DGPs: 8 at n = 49-50 and 4 at
+  n = 99-100.
 - `include_last_label=True` is conservative, as for APS and as documented: 0.961
   [0.960, 0.963] against 0.900 at n = 1000 on `cls_gauss_inf`.
 
@@ -511,21 +534,35 @@ were re-checked under `numpy<2`.
 | # | Hypothesis | Verdict |
 |---|---|---|
 | 1 | crepes regression is conservative by one order statistic at integer boundaries | **Confirmed** (F2). Exactly the predicted cells (n in {9, 19, 49, 99, 999}, alpha in {0.1, 0.2}), not the paired n, plus the edge level alpha = 1/(n+1) at n = 5 and 1000. |
-| 2 | crepes unsmoothed classification is conservative at integer boundaries | **Confirmed** (F3). Smoothed rows pass. |
-| 3 | MAPIE APS `True` conservative, `False` under-covers, `"randomized"` passes | **Partly refuted: model-dependent** (F1). `True` is conservative and `"randomized"` passes in every cell where they run (both are also affected by F4 and F7). `False` under-covers on both synthetic models but over-covers on digits. It does not follow the law in either direction. |
+| 2 | crepes unsmoothed classification is conservative at integer boundaries | **Partly confirmed** (F3). Conservative at the boundary cells with alpha = 0.1 and 0.2, and the smoothed rows pass. The hypothesis said the effect "holds in exact arithmetic too". That is true of the rule, but the prediction failed at alpha = 0.05: floating-point rounding of `1 - 0.95` spares the boundary cells there (n = 19, 99, 999), and they PASS. Which cells are flagged is decided by rounding, as for hypothesis 1. |
+| 3 | MAPIE APS `True` conservative, `False` under-covers, `"randomized"` passes | **Partly refuted: model-dependent** (F1). `True` is conservative and `"randomized"` passes in every cell where they run (both are also affected by F4 and F7). "Passes" means not rejected: MAPIE reuses its calibration uniforms at test time, which this design cannot detect (section 7). `False` under-covers on both synthetic models but over-covers on digits. It does not follow the law in either direction. |
 | 4 | k > n behaviour differs, and all libraries are valid | **Partly refuted.** puncc refuses (valid). crepes returns trivial sets (valid, with a warning). MAPIE refuses even with `allow_infinite_bounds=True` on the split regressor (F4). TorchCP regression crashes (F8), while its classifiers return full sets. |
 | 5 | MAPIE asymmetric CQR has coverage (2k' - (n+1))/(n+1) | **Confirmed where it runs.** For example 0.9177 [0.9124, 0.9230] against 0.92 at n = 49, alpha = 0.1, with rank recovery exact per side. It over-refuses some feasible levels (F4). |
 | 6 | MAPIE RAPS follows the law with n_eff = n - ceil(0.2 n) | **Refuted in its number, confirmed in its form** (F9). MAPIE holds out ceil(0.1 n), not ceil(0.2 n), because `size_raps` is ignored. This was found by reading the source while implementing the adapter (DESIGN 14.1) and is confirmed by the calibration size MAPIE reports in every repetition. The coverage matches the law at n - ceil(0.1 n) in all 26 cells where MAPIE runs. The statistical test cannot tell the candidate sizes apart: in those cells the laws at nominal n, n - ceil(0.1 n) and n - ceil(0.2 n) have nearly the same mean, and 0 of 26 cells reject any of them (`raps_neff.md`). The prediction that the nominal-n law would show LAW_MISMATCH is not supported at R = 200. |
 | 7 | TorchCP float32 creates ties at large n | **No evidence.** TorchCP LAC, APS and RAPS pass at n = 1000, and LAC bracketing (which now sees both directions) gives offset 0 in every draw. |
 | 8 (round 2) | MAPIE APS `False` over-covers on `cls_gauss_inf` | **Refuted** (F1). It under-covers by 0.05-0.11 in all 23 cells where it runs. |
-| 9 (round 2) | Randomized RAPS passes in puncc and TorchCP; MAPIE `randomized` passes against n - ceil(0.1 n); MAPIE `True` is conservative | **Partly refuted.** TorchCP passes and the MAPIE parts are confirmed; puncc's randomized RAPS over-covers (F10). |
-| 10 (round 2) | Bracketing confirms the crepes boundary effect at large n and finds no offset in the other LAC rows | **Confirmed** (F3). k + 1 at exactly the boundary cells, including n = 999; offset 0 in every draw of MAPIE, puncc and TorchCP LAC and of the reference. |
+| 9 (round 2) | Randomized RAPS passes in puncc and TorchCP; MAPIE `randomized` passes against n - ceil(0.1 n); MAPIE `True` is conservative | **Partly refuted.** TorchCP passes and the MAPIE parts are confirmed; puncc's randomized RAPS over-covers (F10). For MAPIE, "passes" means not rejected: its uniforms are reused and one branch of its set rule is not exercised (section 7). |
+| 10 (round 2) | Bracketing confirms the crepes boundary effect at large n and finds no offset in the other LAC rows | **Confirmed** (F3). k + 1 in the boundary cells with alpha in {0.1, 0.2}, including n = 999 (not at alpha = 0.05, see hypothesis 2); offset 0 in every draw of MAPIE, puncc and TorchCP LAC and of the reference. |
 
 ## 6. Checks against adapter mistakes
 
-- **Documented usage.** Every adapter is tested against the library's documented usage
-  written out by hand on the same data (`tests/test_adapters.py`). For example, MAPIE's
-  `SplitConformalRegressor` with `prefit=True` gives identical arrays.
+- **Documented usage.** `tests/test_adapters.py` compares the adapter's output with the
+  library's documented usage, written out by hand, on the same data. This covers 23 of
+  the 37 adapters, including every adapter behind a finding:
+  - MAPIE: split regression (both modes), LAC, APS (all three settings), RAPS (both
+    settings), symmetric and asymmetric CQR, CV+ (K = 5, 10);
+  - crepes: split regression, unsmoothed LAC, unsmoothed class-conditional;
+  - puncc: split regression, CV+ (K = 5, 10), jackknife+ (the documented call raises the
+    same `TypeError`), randomized RAPS;
+  - TorchCP: LAC, split regression, CQR.
+
+  The other 14 adapters are checked for shapes, determinism and, for the cross methods,
+  the order statistic with a constant model. A hand-written call follows the same
+  documented pattern as the adapter, so this check shows that the adapter adds no
+  slicing, seeding or label-mapping mistake; it is not an independent check of the
+  library. The generated repros reuse the same call patterns, so they are not an
+  independent check either. The independent checks are the laws, the reference rows and
+  the cross-checks below.
 - **Standalone repros.** Every finding was reproduced by a script that does not import
   conformcheck. Those scripts call the public API directly with a fixed model.
 - **F1 cross-check.** MAPIE's sets were compared with an independent APS computation on
@@ -585,6 +622,30 @@ were re-checked under `numpy<2`.
 - **MAPIE RAPS law caveat.** MAPIE's hold-out split is stratified by label, so the kept
   calibration points are not a uniformly random subset of the n points, and the n_eff
   law is exact only up to the effect of fixed class counts. No cell rejected it.
+- **MAPIE reuses its uniforms (randomized APS and RAPS).** With an integer
+  `random_state`, which is how the adapter and most users call it, MAPIE draws the
+  calibration uniforms from a fresh `RandomState(seed)` and the test-time tie-break
+  uniforms from another fresh `RandomState(seed)`. Test point i therefore reuses
+  calibration point i's U, for i < min(n, m). This is checked directly by
+  `test_mapie_aps_reuses_calibration_uniforms_at_test_time`. The exact law assumes
+  independent uniforms, so it is only approximately MAPIE's law. In a scratch simulation
+  of randomized APS on `cls_gauss_inf` (60,000 draws per setting) in which every test
+  point shares its U with a calibration point, coverage was 0.844 against 0.833 at
+  n = 5, alpha = 0.2, 0.808 against 0.800 at n = 9, alpha = 0.2, and 0.902 against 0.900
+  at n = 19, alpha = 0.1; with independent uniforms it matched the law. In the study at most
+  min(n, m) of the m = 500 test points share a U, and the effect is far below what
+  R = 200 resolves. For these rows, "matches the exact law" means "not rejected", not
+  "exact".
+- **MAPIE randomized RAPS: one branch of the set rule is untested.** MAPIE divides the
+  excess mass by `p_L - lambda max(0, L - k*) + lambda 1[L > k*]`, where L is the set
+  size (`conformity_scores/sets/raps.py`, `_compute_v_parameter`). That equals `p_L`, as
+  in the RAPS authors' rule, only for L <= k* + 1. For L >= k* + 2 the denominator is
+  `p_L - lambda (L - k* - 1)`, which can be zero or negative. MAPIE tunes lambda and k*
+  itself. In a scratch check (20 draws per setting) the branch was reached by about 1%
+  of test points at n = 100 on `cls_gauss_inf`, and never on `cls_gauss` or at n = 1000,
+  so the 26 passing cells say nothing about it. The denominator also differs from
+  puncc's (F10). We also note, without having traced its effect, that during the lambda
+  search MAPIE sets `k_star = int(lambda)` (`raps.py`, `_regularize_conformity_score`).
 - **CV+ bounds where K does not divide n.** Barber et al. (2021, Thm 4) assume folds of
   equal size n/K. The `lower` cells of CV+ with a real model at n = 19, 49, 99 and 999
   apply the same formula with n/K as a fraction, which is an extrapolation. All of those

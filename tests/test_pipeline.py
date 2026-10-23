@@ -345,3 +345,99 @@ def test_cli_run_runtime_errors_are_not_config_errors(
     p = _write(tmp_path, TOML)
     with pytest.raises(ValueError, match="runtime failure"):
         cli.main(["run", "--study", str(p), "--out", str(tmp_path / "o")])
+
+
+SMALL = TOML.replace("reps = 60", "reps = 20").replace("n = [9, 19]", "n = [9]")
+
+
+def test_study_from_config_round_trips_unit_ids(tiny: study.Study) -> None:
+    again = study.Study.from_config(json.loads(json.dumps(tiny.config())), tiny.source)
+    assert again == tiny
+    assert [u.uid(again) for u in study.enumerate_units(again)] == [
+        u.uid(tiny) for u in study.enumerate_units(tiny)
+    ]
+
+
+def test_full_study_is_default_grid_at_full_size() -> None:
+    d, f = study.load_study("default"), study.load_study("full")
+    assert (f.reps, f.test_points) == (2000, 1000)
+    assert f.grids == d.grids and f.alphas == d.alphas and f.mutants == d.mutants
+    assert f.seed == d.seed and f.edge_alphas == d.edge_alphas
+
+
+def test_report_uses_only_records_of_the_current_study(tmp_path: Path) -> None:
+    # A directory reused with --force after a config change keeps the old records in
+    # units.jsonl; the report and the repros must use only the current study's units.
+    from conformcheck.report import build_cells
+    from conformcheck.runner import study_records
+
+    libs = {"reference"}
+    first = study.load_study(_write(tmp_path, SMALL))
+    out = tmp_path / "run"
+    run_study(first, out, workers=1, libraries=libs, echo=None)
+    second = study.Study(**{**first.__dict__, "reps": 21})
+    res = run_study(second, out, workers=1, libraries=libs, force=True, echo=None)
+    assert res["done"] == res["total"] == res["finished"]
+    records, dropped = study_records(out)
+    assert len(records) == res["total"] and dropped["other_config"] == res["total"]
+    assert {r["reps"] for r in records} == {21}
+    payload = write_report(out)
+    assert payload["units_done"] == res["total"]
+    assert payload["records_dropped"]["other_config"] == res["total"]
+    cells = build_cells(records)
+    keys = [(c.row, c.dgp, c.n, c.alpha) for c in cells]
+    assert len(keys) == len(set(keys))
+    assert "Records left out" in (out / "report" / "summary.md").read_text(encoding="utf-8")
+
+
+def test_units_from_other_versions_are_rerun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from conformcheck import runner
+
+    libs = {"reference"}
+    s = study.load_study(_write(tmp_path, SMALL))
+    out = tmp_path / "run"
+    total = run_study(s, out, workers=1, libraries=libs, echo=None)["total"]
+    recs = load_done(out / "units.jsonl")
+    assert all(r["versions"]["numpy"] for r in recs.values())
+    # Records written before versions were stored per record are reused when run.json
+    # says they were made under the current versions.
+    legacy = [{k: v for k, v in r.items() if k != "versions"} for r in recs.values()]
+    (out / "units.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in legacy), encoding="utf-8"
+    )
+    assert run_study(s, out, workers=1, libraries=libs, echo=None)["finished"] == 0
+    # After an upgrade (here: a different numpy), nothing is reused under --force.
+    real = runner.versions
+    monkeypatch.setattr(runner, "versions", lambda: {**real(), "numpy": "0.0.1"})
+    with pytest.raises(FingerprintMismatch):
+        run_study(s, out, workers=1, libraries=libs, echo=None)
+    res = run_study(s, out, workers=1, libraries=libs, force=True, echo=None)
+    assert res["finished"] == total and res["done"] == total
+    assert "other versions" in (out / "progress.log").read_text(encoding="utf-8")
+    assert {r["versions"]["numpy"] for r in load_done(out / "units.jsonl").values()} == {"0.0.1"}
+    # A library-only upgrade re-runs only that library's units (none here).
+    monkeypatch.setattr(runner, "versions", lambda: {**real(), "numpy": "0.0.1", "mapie": "9"})
+    res = run_study(s, out, workers=1, libraries=libs, force=True, echo=None)
+    assert res["finished"] == 0 and res["done"] == total
+    payload = write_report(out)
+    assert payload["units_done"] == total and payload["records_dropped"]["other_versions"] == 0
+
+
+def test_matrix_shows_zero_coverage(tmp_path: Path) -> None:
+    import dataclasses
+
+    from conformcheck.report import build_cells, render_matrix_md, summarize_rows
+    from conformcheck.runner import study_records
+
+    s = study.load_study(_write(tmp_path, SMALL))
+    out = tmp_path / "run"
+    run_study(s, out, workers=1, libraries={"reference"}, max_units=1, echo=None)
+    payload = write_report(out)
+    cell = build_cells(study_records(out)[0])[0]
+    bad = dataclasses.replace(
+        cell, row="lib/x/y", library="lib", status="FAIL", coverage=0.0, ci_low=0.0, ci_high=0.0
+    )
+    text = render_matrix_md([bad], summarize_rows([bad]), payload)
+    assert "0.0000 [0.0000, 0.0000]" in text

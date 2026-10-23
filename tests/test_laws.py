@@ -137,3 +137,49 @@ def test_split_count_law_matches_simulation() -> None:
 def test_cv_plus_bound_proven_only_for_equal_folds() -> None:
     assert laws.cv_plus_bound_proven(20, 5) and laws.cv_plus_bound_proven(1000, 10)
     assert not laws.cv_plus_bound_proven(19, 5) and not laws.cv_plus_bound_proven(999, 10)
+
+
+def _tv(counts: np.ndarray, pmf: np.ndarray) -> float:
+    observed = np.bincount(counts, minlength=len(pmf)) / len(counts)
+    return 0.5 * float(np.abs(observed - pmf).sum())
+
+
+def test_discrete_count_law_matches_simulation() -> None:
+    """The full pmf of the tied-score law, not only its mean (it feeds the GOF test)."""
+    from scipy import stats
+
+    rng = np.random.default_rng(2)
+    pmf = np.array([0.2, 0.3, 0.1, 0.25, 0.15])
+    n, alpha, m, reps = 9, 0.2, 20, 40_000
+    law = laws.discrete_count_law(n, alpha, m, pmf)
+    k = laws.split_index(n, alpha)
+    q = np.sort(rng.choice(5, size=(reps, n), p=pmf), axis=1)[:, k - 1]
+    counts = np.sum(rng.choice(5, size=(reps, m), p=pmf) <= q[:, None], axis=1)
+    assert law.pmf is not None
+    assert _tv(counts, law.pmf) < 0.02
+    # The check has power: a law with the right mean but the wrong shape fails it.
+    wrong = stats.binom.pmf(np.arange(m + 1), m, law.mean / m)
+    assert _tv(counts, wrong) > 0.1
+
+
+def test_class_conditional_law_matches_simulation() -> None:
+    """Sum over classes of independent per-class split conformal counts."""
+    from scipy import stats
+
+    from conformcheck.study import _class_conditional_law
+
+    rng = np.random.default_rng(3)
+    n, alpha, m, n_classes, reps = 19, Fraction(1, 10), 100, 4, 40_000
+    cl = _class_conditional_law(n, alpha, m, n_classes)
+    k, m_y = laws.split_index(n, alpha), m // n_classes
+    counts = np.zeros(reps, dtype=int)
+    for c in range(n_classes):  # a different continuous score distribution per class
+        scale = 1.0 + c
+        q = np.sort(rng.normal(scale=scale, size=(reps, n)), axis=1)[:, k - 1]
+        counts += np.sum(rng.normal(scale=scale, size=(reps, m_y)) <= q[:, None], axis=1)
+    assert cl.pmf is not None and cl.m == m
+    assert _tv(counts, cl.pmf) < 0.03
+    assert counts.mean() == pytest.approx(cl.mean, abs=4 * math.sqrt(cl.variance / reps))
+    # Power: the marginal law on all m points has the same mean but a wider spread.
+    wrong = stats.betabinom.pmf(np.arange(m + 1), m, k, n + 1 - k)
+    assert _tv(counts, wrong) > 0.1

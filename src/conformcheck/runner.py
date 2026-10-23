@@ -7,6 +7,9 @@
   are pinned to 1 and torch uses one thread.
 * The parent process is the only writer: each finished unit is appended as one JSON
   line to ``units.jsonl`` (flushed and fsynced); a rerun skips unit ids already present.
+  Each record stores the versions it depends on (:func:`unit_versions`). A record made
+  under different versions is never reused: after an upgrade (``force=True``) its unit
+  is run again, and the newer record replaces it.
 * Progress (done/total, rate, ETA) is appended to ``progress.log`` after every unit.
 * Units whose library is not installed are never checkpointed. By default the run is
   refused (:class:`MissingLibraries`); with ``allow_missing=True`` they are left out of
@@ -91,6 +94,37 @@ def versions() -> dict[str, str | None]:
         except md.PackageNotFoundError:
             out[dist] = None
     return out
+
+
+CORE_DISTS = ("python", "numpy", "scipy", "scikit-learn")
+LIBRARY_DISTS: dict[str, tuple[str, ...]] = {
+    "mapie": ("mapie",),
+    "crepes": ("crepes",),
+    "puncc": ("puncc",),
+    "torchcp": ("torchcp", "torch"),
+    "reference": (),
+}
+
+
+def unit_versions(vers: dict[str, str | None], library: str) -> dict[str, str | None]:
+    """The versions a unit's result depends on: Python, the numeric stack and its library."""
+    return {d: vers.get(d) for d in (*CORE_DISTS, *LIBRARY_DISTS.get(library, (library,)))}
+
+
+def record_versions(
+    rec: dict[str, Any], fallback: dict[str, str | None] | None
+) -> dict[str, str | None] | None:
+    """Versions a record was computed under.
+
+    Records written before versions were stored per record carry none; they were
+    computed under the versions in the ``run.json`` they were written with (``fallback``).
+    """
+    v = rec.get("versions")
+    if v is not None:
+        return dict(v)
+    if fallback is None:
+        return None
+    return unit_versions(fallback, str(rec.get("library", "")))
 
 
 # --- one unit ---------------------------------------------------------------------------
@@ -484,8 +518,10 @@ def run_study(
     units_path, progress, meta_path = out / "units.jsonl", out / "progress.log", out / "run.json"
     vers = versions()
     fp = fingerprint(study, {"versions": vers, "libraries": sorted(libraries or [])})
+    old_versions: dict[str, str | None] | None = None
     if meta_path.exists():
         old = json.loads(meta_path.read_text(encoding="utf-8"))
+        old_versions = old.get("versions")
         if old.get("fingerprint") != fp and not force:
             raise FingerprintMismatch(
                 f"{meta_path} has fingerprint {old.get('fingerprint')}, this run {fp}; "
@@ -500,6 +536,14 @@ def run_study(
     skipped_units = len(all_units) - len(units)
     uid_of = {u.uid(study): u for u in units}
     done = load_done(units_path)
+    stale = {
+        uid
+        for uid, rec in done.items()
+        if uid in uid_of
+        and record_versions(rec, old_versions)
+        != unit_versions(vers, reg[uid_of[uid].adapter].spec.library)
+    }
+    done = {uid: rec for uid, rec in done.items() if uid not in stale}
     todo = [u for uid, u in uid_of.items() if uid not in done]
     todo.sort(key=cost_hint, reverse=True)
     if max_units is not None:
@@ -535,6 +579,11 @@ def run_study(
         _log(progress, msg)
         if echo:
             echo(msg)
+    if stale:
+        msg = f"{len(stale)} finished units were computed under other versions; re-running them"
+        _log(progress, msg)
+        if echo:
+            echo(msg)
     if echo:
         echo(f"{len(todo)} units to run ({n_done}/{total} already done), {workers} workers")
     cfg = {"reps": study.reps, "test_points": study.test_points, "seed": study.seed}
@@ -554,6 +603,7 @@ def run_study(
             _log(progress, f"unit-not-done {u.adapter} {u.dgp} n={u.n}: {rec.get('status')}")
             return
         rec["uid"] = u.uid(study)
+        rec["versions"] = unit_versions(vers, reg[u.adapter].spec.library)
         _append(units_path, rec)
         finished += 1
         el = time.perf_counter() - t0
@@ -588,7 +638,15 @@ def run_study(
                     exc = f.exception()
                     handle(u, None if exc else f.result(), exc)
     elapsed = time.perf_counter() - t0
-    all_done = len(set(load_done(units_path)) & set(uid_of))
+    all_done = len(
+        {
+            uid
+            for uid, rec in load_done(units_path).items()
+            if uid in uid_of
+            and record_versions(rec, old_versions)
+            == unit_versions(vers, reg[uid_of[uid].adapter].spec.library)
+        }
+    )
     _log(
         progress,
         f"end finished={finished} errors={errors} done={all_done}/{total} "
@@ -609,7 +667,38 @@ def run_study(
 
 
 def iter_records(run_dir: str | Path) -> Iterable[dict[str, Any]]:
-    """Checkpointed records of a run; reads ``units.jsonl`` or, failing that, ``units.jsonl.gz``."""
+    """All checkpointed records of a run directory, including ones from earlier configs.
+
+    Reads ``units.jsonl`` or, failing that, ``units.jsonl.gz``. Use :func:`study_records`
+    for the records that belong to the study in ``run.json``.
+    """
     run = Path(run_dir)
     plain, gz = run / "units.jsonl", run / "units.jsonl.gz"
     yield from load_done(gz if not plain.exists() and gz.exists() else plain).values()
+
+
+def study_records(run_dir: str | Path) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Records of the study described by ``run.json``, and counts of those left out.
+
+    A run directory reused with ``--force`` can hold records of an earlier configuration
+    (other R, m, seed or grid) and records computed under other library versions. Only
+    records whose unit id belongs to the current study and whose versions match
+    ``run.json`` are returned; the second value counts the rest by reason
+    (``other_config``, ``other_versions``).
+    """
+    run = Path(run_dir)
+    meta = json.loads((run / "run.json").read_text(encoding="utf-8"))
+    study = Study.from_config(meta["study"], meta.get("source", ""))
+    lib_of = {u.uid(study): u.adapter.split("/")[0] for u in enumerate_units(study)}
+    vers = meta.get("versions") or {}
+    kept: list[dict[str, Any]] = []
+    dropped = {"other_config": 0, "other_versions": 0}
+    for rec in iter_records(run):
+        uid = rec.get("uid")
+        if uid not in lib_of:
+            dropped["other_config"] += 1
+        elif record_versions(rec, vers) != unit_versions(vers, lib_of[uid]):
+            dropped["other_versions"] += 1
+        else:
+            kept.append(rec)
+    return kept, dropped

@@ -37,11 +37,11 @@ The reference rows produced 0 false alarms. Details, intervals and limitations a
 | Finding | Kind | Size |
 |---|---|---|
 | MAPIE APS `include_last_label=False` | coverage set by the model, not the law | at a 0.90 target: about 0.55 and 0.79 on two synthetic models (under), about 0.97 on digits (over), every n |
-| crepes split regression and unsmoothed LAC | k + 1 at integer `(n+1) alpha` (float `1 - 0.9`) | 0.949 vs 0.900 at n = 19 |
+| crepes split regression and unsmoothed LAC | k + 1 at integer `(n+1) alpha` for alpha = 0.1, 0.2: float rounding of `1 - 0.9` and `1 - 0.8` (alpha = 0.05 rounds the other way) | 0.949 vs 0.900 at n = 19 |
 | MAPIE split, LAC, APS, symmetric CQR | refuse feasible `alpha` in `[1/(n+1), 1/n)` | every n |
 | MAPIE asymmetric CQR | refuses when `n < 2/alpha` although `k' <= n` | n = 9, alpha = 0.2; n = 19, alpha = 0.1 |
 | MAPIE CV+ (K = 5, 10) | lower endpoint uses k + 1 at n = 999, alpha = 0.05 | found by rank recovery |
-| MAPIE RAPS | ignores `size_raps` (holds out ceil(0.1 n), not 0.2 n); raises at n <= 20 with 4 classes | exact at the effective size where it runs |
+| MAPIE RAPS | ignores `size_raps` (holds out ceil(0.1 n), not 0.2 n); raises at n <= 20 with 4 classes | not rejected at the effective size where it runs |
 | puncc randomized RAPS | set rule does not match puncc's own score | 0.990 and 0.917 vs 0.900 on two synthetic models |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
@@ -166,8 +166,8 @@ m=1000) takes hours.
 ## Validating the oracle
 
 - `uv run pytest` runs the test suite, including exact reference values for the laws,
-  null-calibration and power tests of the statistical layer, and the adapters' checks
-  against each library's documented usage. `uv run pytest -m "not slow"` is what CI runs.
+  null-calibration and power tests of the statistical layer, and checks of 23 adapters
+  (every adapter behind a finding) against each library's documented usage. `uv run pytest -m "not slow"` is what CI runs.
 - In every study the reference rows must pass and the mutant rows must be caught; the
   report prints both (see "Oracle controls" in [REPORT.md](REPORT.md)).
 - Each finding has a repro under [docs/results/default/repros](docs/results/default/repros)

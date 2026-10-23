@@ -1,7 +1,8 @@
 """Command-line interface: ``libraries``, ``plan``, ``run``, ``report`` and ``repro``.
 
-Exit codes: 0 success, 1 failure (or, for ``repro --verify``, at least one verified
-repro), 2 usage or configuration error (the resume wrapper does not retry those).
+Exit codes: 0 success, 1 failure, 2 usage or configuration error (the resume wrapper
+does not retry those). ``repro`` exits 0 once the scripts are written; with ``--verify``
+each script's own exit code is printed next to it (1 means the problem reproduces).
 """
 
 from __future__ import annotations
@@ -114,6 +115,13 @@ def _cmd_report(args: argparse.Namespace) -> int:
     payload = write_report(run, args.out)
     h = payload["headline"]
     out = Path(args.out) if args.out else run / "report"
+    dropped = {k: v for k, v in (payload.get("records_dropped") or {}).items() if v}
+    if dropped:
+        print(
+            "warning: records not in the study of run.json left out: "
+            + ", ".join(f"{v} {k.replace('_', ' ')}" for k, v in dropped.items()),
+            file=sys.stderr,
+        )
     print(
         f"{payload['units_done']} units, {payload['statistical_cells']} statistical cells; "
         f"{h['rows_small_n_flagged']}/{h['rows']} library rows flagged at n <= 100; "

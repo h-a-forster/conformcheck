@@ -69,6 +69,31 @@ class Study:
         d.pop("source")
         return d
 
+    @classmethod
+    def from_config(cls, cfg: dict[str, Any], source: str = "") -> Study:
+        """Inverse of :meth:`config` (as stored in ``run.json``): same units, same uids."""
+        d = dict(cfg)
+        grids = tuple(
+            Grid(
+                name=str(g["name"]),
+                n=tuple(int(v) for v in g["n"]),
+                dgps=tuple(str(v) for v in g["dgps"]),
+                alphas=None if g.get("alphas") is None else tuple(str(a) for a in g["alphas"]),
+                edge_alphas=g.get("edge_alphas"),
+                n_folds=tuple(int(k) for k in g.get("n_folds", ())),
+            )
+            for g in d.pop("grids")
+        )
+        return cls(
+            **{
+                **d,
+                "alphas": tuple(str(a) for a in d["alphas"]),
+                "mutants": tuple(str(x) for x in d.get("mutants", ())),
+            },
+            grids=grids,
+            source=source,
+        )
+
 
 REQUIRED_KEYS = ("name", "seed", "reps", "test_points", "alphas")
 

@@ -171,6 +171,10 @@
     "workers": 4
   },
   "units_done": 1412,
+  "records_dropped": {
+    "other_config": 0,
+    "other_versions": 0
+  },
   "statistical_cells": 4348,
   "headline": {
     "rows": 37,

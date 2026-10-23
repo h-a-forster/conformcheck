@@ -29,7 +29,7 @@ import numpy as np
 from scipy import stats as sps
 
 from conformcheck import laws, stats
-from conformcheck.runner import iter_records
+from conformcheck.runner import study_records
 from conformcheck.study import cell_law
 
 SEVERITY = ["ERROR", "FAIL", "LAW_MISMATCH", "CONSERVATIVE", "OVER_REFUSED", "REFUSED", "PASS"]
@@ -448,7 +448,9 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
     out.mkdir(parents=True, exist_ok=True)
     meta = json.loads((run / "run.json").read_text(encoding="utf-8"))
     study = meta["study"]
-    records = list(iter_records(run))
+    records, dropped = study_records(run)
+    if not records:
+        raise ValueError(f"{run} has no finished units of the study in run.json")
     cells = build_cells(records)
     adjust(cells, float(study["fwer"]), float(study["fdr"]))
     rows = summarize_rows(cells)
@@ -486,6 +488,7 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
         },
         "study": study,
         "units_done": len(records),
+        "records_dropped": dropped,
         "statistical_cells": sum(c.statistical for c in cells),
         "headline": headline,
         "controls": controls,
@@ -571,7 +574,11 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
         (c for c in cells if c.status != "PASS" and not c.is_control),
         key=lambda c: (c.row, c.dgp, c.n, -Fraction(c.alpha)),
     ):
-        cov = f"{_fmt(c.coverage)} [{_fmt(c.ci_low)}, {_fmt(c.ci_high)}]" if c.coverage else ""
+        cov = (
+            ""
+            if c.coverage is None
+            else f"{_fmt(c.coverage)} [{_fmt(c.ci_low)}, {_fmt(c.ci_high)}]"
+        )
         lines.append(
             f"| `{c.row}` | {c.dgp} | {c.n} | {_alpha_label(c.alpha)} | {c.k} | {c.status} | "
             f"{cov} | {c.target:.4f} | {_offsets_label(c)} | "
@@ -585,6 +592,7 @@ def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[s
     h = payload["headline"]
     ctl = payload["controls"]
     v = payload["run"]["versions"] or {}
+    dropped: dict[str, int] = payload.get("records_dropped") or {}
     lines = [
         f"# Summary: study `{payload['study']['name']}`",
         "",
@@ -601,6 +609,16 @@ def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[s
                 "",
             ]
             if payload["run"].get("missing_libraries")
+            else []
+        ),
+        *(
+            [
+                "**Records left out:** "
+                + ", ".join(f"{val} {k.replace('_', ' ')}" for k, val in dropped.items() if val)
+                + " (from an earlier configuration or other versions in the same directory).",
+                "",
+            ]
+            if any(dropped.values())
             else []
         ),
         "Small-n status counts: "

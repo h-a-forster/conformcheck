@@ -32,8 +32,8 @@ conformance suite (searched 2026-10-23).
 
 ## 2. Scope for v0.1 (after critique)
 
-The implementation budget is about 5 agent-hours. The default study must run in under
-45 CPU-minutes on 4 workers, and the full-size run is a documented, resumable command.
+The default study must run in under 45 CPU-minutes on 4 workers, and the full-size run
+is a documented, resumable command.
 
 **In**
 
@@ -51,7 +51,7 @@ That gives about 29 library-method-variant rows without RAPS and about 33 with i
 (counting MAPIE's two `k > n` modes, both crepes smoothing modes and both APS
 randomization modes), plus the control rows (reference and mutants, section 4).
 
-**Cut from the picked scope, and why**
+**Cut from the initial scope, and why**
 
 - California housing: it needs a download. The diabetes dataset covers real regression
   data offline. Iris is dropped too: with 150 samples the pool is too small next to
@@ -66,9 +66,9 @@ randomization modes), plus the control rows (reference and mutants, section 4).
 - MAPIE Mondrian: MAPIE 1.6 has no class-conditional classifier, so that cell is
   "unsupported", not cut.
 
-**Out** (as in the pick): time-series methods (ACI, EnbPI), weighted conformal under
-covariate shift, conformal risk control and Learn-then-Test, GPU runs, filing upstream
-issues before owner review, and any public push.
+**Out of scope for v0.1**: time-series methods (ACI, EnbPI), weighted conformal under
+covariate shift, conformal risk control and Learn-then-Test, and GPU runs. Findings are
+reported upstream only after they have been reviewed.
 
 ## 3. Oracle
 

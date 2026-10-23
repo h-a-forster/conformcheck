@@ -20,6 +20,27 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `conformcheck report` and `repro` used every record in `units.jsonl`, including records
+  of an earlier configuration left behind by a `--force` rerun into the same directory
+  (duplicated cells, an inflated Holm/BY family). They now use only the units of the
+  study in `run.json` and report how many records were left out.
+- After a library upgrade, `run --force` reused finished units computed under the old
+  versions and labelled them with the new ones. Each record now stores the versions it
+  depends on (Python, numpy, scipy, scikit-learn and its library); records made under
+  other versions are re-run, and the report leaves out any that remain.
+- `studies/full.toml` was missing the round-2 DGP `cls_gauss_inf`; it is now the default
+  grid at full size.
+- `matrix.md` left the coverage column blank for a cell with coverage exactly 0.
+- The CLI docstring said `repro --verify` exits 1 when a repro verifies; it exits 0 and
+  prints each script's exit code.
+- REPORT.md: section 6 now lists which adapters have documented-usage tests (23 of 37,
+  every adapter behind a finding; tests added for the rest of those); F3 and hypothesis 2
+  give the floating-point mechanism (alpha = 0.05 is spared by rounding); Holm p-values
+  and ranges regenerated from the round-2 cells; new limitations on MAPIE's reuse of
+  uniforms and on an untested branch of MAPIE's randomized RAPS rule.
+- Tests compare the full pmf of the class-conditional and tied-score laws with
+  simulation, not only their means.
+
 - `diagnostics.bracket_rank` returned a lower end one too low (`#{s <= a}` instead of
   `#{s < a} + 1`), which hid positive offsets. Bracketing was diagnostic only before, so
   no published status depended on it.

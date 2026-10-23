@@ -108,6 +108,14 @@ classifier); not tagged, not pushed.**
 - Bracketing is now a deterministic status for LAC and class-conditional LAC and catches
   every LAC mutant cell at n = 999/1000. v0.1's `bracket_rank` had a lower-end bug that
   hid positive offsets (fixed, CHANGELOG).
+- Review of round 2 (2026-10-24): runner/report fixes (records of earlier configs or
+  other versions no longer leak into reports; version-aware reuse), `full.toml` now
+  includes `cls_gauss_inf`, documented-usage tests for every finding adapter (23 of 37),
+  pmf-level simulation tests for the class-conditional and tied laws, REPORT corrections
+  (F3 mechanism is float rounding; hypothesis 2 partly confirmed; regenerated Holm
+  p-values; MAPIE uniform-reuse and RAPS-branch limitations). No study results changed:
+  the report rebuilt from the committed units is byte-identical apart from a new
+  `records_dropped` field in matrix.json.
 
 Notes for whoever continues:
 
@@ -132,7 +140,16 @@ Notes for whoever continues:
   posterior (top-1 0.708). Laws hold for any fixed model; effect sizes do not.
 - `conformcheck run` refuses to start when a needed library is missing; use
   `--libraries` or `--allow-missing`. A changed study config needs `--force` (the
-  fingerprint guards it; finished units are still reused by id).
+  fingerprint guards it; finished units are still reused by id, but only when the
+  versions stored in the record match the current ones: `runner.unit_versions`).
+  Records without stored versions (round 2 and earlier) take the versions of the
+  `run.json` they were written with.
+- `report` and `repro` read records through `runner.study_records`, which keeps only the
+  units of the study in `run.json` with matching versions; old records stay in
+  `units.jsonl` but are counted as left out.
+- MAPIE randomized APS/RAPS reuse the calibration uniforms at test time (int
+  `random_state`); a test pins this. MAPIE's randomized RAPS denominator differs from
+  the authors' rule for L >= k* + 2, a branch the study barely reaches (REPORT section 7).
 - `conformcheck plan` probes smallest, middle and largest n; still treat it as a rough
   estimate.
 - `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
