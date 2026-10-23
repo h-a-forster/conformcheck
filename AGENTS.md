@@ -59,7 +59,8 @@ src/conformcheck/
   cli.py            conformcheck libraries | plan | run | report | repro                   [done]
   studies/          smoke.toml, default.toml, full.toml
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
-tests/              test_laws.py (reference values), test_package.py, test_import_stubs.py
+tests/              laws, stats, reference, adapters, pipeline, testing API, controls
+REPORT.md           default study findings; docs/results/default/ holds its outputs
 docs/DESIGN.md      the spec
 ```
 
@@ -72,7 +73,7 @@ uv run pytest -m "not slow"   # what CI runs
 uv run ruff check . && uv run ruff format --check .
 ```
 
-## How to run the study (after M4 to M6)
+## How to run the study
 
 ```sh
 uv run conformcheck plan --study default                                  # units + time estimate
@@ -87,12 +88,39 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-23): **M0 to M7 done.** All modules implemented and tested (stats,
-reference + mutants, data, adapters for the four libraries, diagnostics, study, runner,
-plan, report, repro, testing API, plugin, CLI). RAPS was cut from v0.1 (DESIGN section
-2 allowed this); the matrix has no RAPS rows. The default study is running into
-`runs/default` (resumable: rerun the same command).
+Status (2026-10-23): **M0 to M8 done; v0.1.0 prepared (not tagged, not pushed).**
 
-Next: M8 (finish the default study, `conformcheck report runs/default`,
-`conformcheck repro runs/default --verify`, puncc numpy<2 re-check, copy results to
-`docs/results/default/`, write REPORT.md, README headline).
+- The default study finished: 984 units, 45.2 min with 4 workers, plus 2.4 min
+  re-running the 61 TorchCP regression units after the rank-tolerance fix. The plan
+  estimated 20 min, so treat `plan` as a lower bound.
+- Results are in `docs/results/default/`: the matrix, summary, cells.csv, gzipped
+  units and verified repros. `REPORT.md` has the findings, the verdicts on the
+  hypotheses and the limitations.
+- Every library repro exits 1 under `conformcheck repro --verify`. The puncc repros
+  were re-checked under `numpy<2` (`repros/puncc_numpy1_recheck.txt`).
+- Oracle controls: the reference rows have 0 Holm rejections and 0 non-PASS cells.
+  The exact mean test rejects in 19 of 402 cells (binomial p = 0.63). The mutants are
+  caught as shown in REPORT section 3.
+- RAPS was cut from v0.1 (DESIGN section 2).
+
+Notes for whoever continues:
+
+- Rank tolerance is `1e-6 * max(1, |q|, scale)`, where scale is the magnitude of the
+  endpoints. Float32 libraries need the scale term (`diagnostics.py`).
+- The oracle's size check is a binomial test on the exact two-sided mean-test
+  p-values. Do not KS-test the combined cell p-values, which are conservative by
+  construction.
+- `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
+  message. An unexpected crash in a repro exits 2, never 1.
+- `conformcheck report` takes about 1.5 min on the default run (pure Python over
+  4330 cells).
+
+Next (not started):
+
+- The `full` study (R = 2000, m = 1000; hours; resumable).
+- RAPS rows.
+- Rank recovery for classification (currently statistical only, so classifiers have
+  low power at n >= 100).
+- Probe a mid-range n in `plan`.
+- First CI run, once the repository is pushed (needs the owner's go-ahead).
+- Report the findings upstream (owner's decision).
