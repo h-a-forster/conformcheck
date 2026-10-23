@@ -1,0 +1,4 @@
+puncc 0.9.3, numpy 2.5.4
+n=20, alpha=1/21 (passed as 0.047619047619047616): k=20 <= n: a finite valid set exists
+seed 0: raised ValueError: All coordinates of [q] must be in the open interval (0, 1).
+REPRODUCED

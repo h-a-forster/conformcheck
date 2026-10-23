@@ -1,0 +1,8 @@
+puncc 0.9.3, numpy 2.5.4
+n=99, K=5 folds, alpha=1/5 (passed as 0.2): with a constant model both endpoints must be the k=80-th smallest |y|
+seed 0: order statistic used lower 81, upper 81 (expected 80)
+seed 1: order statistic used lower 81, upper 81 (expected 80)
+seed 2: order statistic used lower 81, upper 81 (expected 80)
+seed 3: order statistic used lower 81, upper 81 (expected 80)
+seed 4: order statistic used lower 81, upper 81 (expected 80)
+REPRODUCED

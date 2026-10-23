@@ -1,0 +1,8 @@
+numpy , numpy 2.5.4
+n=5, alpha=1/5 (passed as 0.2): split conformal must use the k=5-th smallest calibration score
+seed 0: threshold 1.54591 -> order statistic used 4 (expected 5)
+seed 1: threshold 0.782119 -> order statistic used 4 (expected 5)
+seed 2: threshold 0.677567 -> order statistic used 4 (expected 5)
+seed 3: threshold 0.968046 -> order statistic used 4 (expected 5)
+seed 4: threshold 1.27563 -> order statistic used 4 (expected 5)
+REPRODUCED

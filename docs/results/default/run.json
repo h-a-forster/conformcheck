@@ -1,0 +1,172 @@
+{
+  "elapsed_s_last_session": 143.8,
+  "ended": "2026-10-23T21:45:15",
+  "fingerprint": "bc040613bb12ec08",
+  "first_started": "2026-10-23T20:51:45",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "AMD64 Family 23 Model 104 Stepping 1, AuthenticAMD",
+  "source": "builtin:default",
+  "started": "2026-10-23T21:42:51",
+  "study": {
+    "alphas": [
+      "0.05",
+      "0.1",
+      "0.2"
+    ],
+    "edge_alphas": true,
+    "fdr": 0.05,
+    "fwer": 0.05,
+    "grids": [
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_gauss",
+          "reg_hetero_t",
+          "cls_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          5,
+          9,
+          10,
+          19,
+          20,
+          49,
+          50,
+          99,
+          100,
+          999,
+          1000
+        ],
+        "n_folds": [],
+        "name": "split"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_tied"
+        ],
+        "edge_alphas": null,
+        "n": [
+          5,
+          9,
+          10,
+          19,
+          20,
+          49,
+          50,
+          99,
+          100
+        ],
+        "n_folds": [],
+        "name": "tied"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_constant",
+          "reg_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          9,
+          10,
+          19,
+          20,
+          49,
+          50,
+          99
+        ],
+        "n_folds": [],
+        "name": "jackknife_plus"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_constant",
+          "reg_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          19,
+          20,
+          49,
+          50,
+          99,
+          100,
+          999,
+          1000
+        ],
+        "n_folds": [
+          5,
+          10
+        ],
+        "name": "cv_plus"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "cls_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          5,
+          9,
+          10,
+          19,
+          20,
+          49,
+          50,
+          99
+        ],
+        "n_folds": [],
+        "name": "class_conditional"
+      },
+      {
+        "alphas": [
+          "0.1",
+          "0.2"
+        ],
+        "dgps": [
+          "diabetes",
+          "digits"
+        ],
+        "edge_alphas": false,
+        "n": [
+          10,
+          19,
+          50,
+          99
+        ],
+        "n_folds": [],
+        "name": "toy"
+      }
+    ],
+    "mutants": [
+      "k_minus_1",
+      "k_plus_1",
+      "no_correction_linear",
+      "n_instead_of_n_plus_1"
+    ],
+    "name": "default",
+    "reference": true,
+    "reps": 200,
+    "seed": 20261023,
+    "test_points": 500,
+    "workers": 4
+  },
+  "units_total": 984,
+  "versions": {
+    "conformcheck": "0.1.0.dev0",
+    "crepes": "0.9.1",
+    "mapie": "1.6.0",
+    "numpy": "2.5.4",
+    "puncc": "0.9.3",
+    "python": "3.13.1",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "torch": "2.14.1+cpu",
+    "torchcp": "1.2.1"
+  },
+  "workers": 4
+}

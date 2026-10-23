@@ -1,0 +1,45 @@
+puncc repros re-run with: uv run --no-project --isolated --python 3.12 --with "puncc==0.9.3" --with "numpy<2" python <script>
+=== puncc__cv_plus__K-10__raises-2.py
+puncc 0.9.3, numpy 1.26.4
+n=20, alpha=1/21 (passed as 0.047619047619047616): k=20 <= n: a finite valid set exists
+seed 0: raised ValueError: All coordinates of [q] must be in the open interval (0, 1).
+REPRODUCED
+exit=1
+=== puncc__cv_plus__K-10__raises.py
+puncc 0.9.3, numpy 1.26.4
+n=19, alpha=1/5 (passed as 0.2): k=16 <= n: a finite valid set exists
+seed 0: raised TypeError: object of type 'numpy.float64' has no len()
+REPRODUCED
+exit=1
+=== puncc__cv_plus__K-10__rank.py
+puncc 0.9.3, numpy 1.26.4
+n=99, K=10 folds, alpha=1/5 (passed as 0.2): with a constant model both endpoints must be the k=80-th smallest |y|
+seed 0: order statistic used lower 81, upper 81 (expected 80)
+seed 1: order statistic used lower 81, upper 81 (expected 80)
+seed 2: order statistic used lower 81, upper 81 (expected 80)
+seed 3: order statistic used lower 81, upper 81 (expected 80)
+seed 4: order statistic used lower 81, upper 81 (expected 80)
+REPRODUCED
+exit=1
+=== puncc__cv_plus__K-5__raises.py
+puncc 0.9.3, numpy 1.26.4
+n=20, alpha=1/21 (passed as 0.047619047619047616): k=20 <= n: a finite valid set exists
+seed 0: raised ValueError: All coordinates of [q] must be in the open interval (0, 1).
+REPRODUCED
+exit=1
+=== puncc__cv_plus__K-5__rank.py
+puncc 0.9.3, numpy 1.26.4
+n=99, K=5 folds, alpha=1/5 (passed as 0.2): with a constant model both endpoints must be the k=80-th smallest |y|
+seed 0: order statistic used lower 81, upper 81 (expected 80)
+seed 1: order statistic used lower 81, upper 81 (expected 80)
+seed 2: order statistic used lower 81, upper 81 (expected 80)
+seed 3: order statistic used lower 81, upper 81 (expected 80)
+seed 4: order statistic used lower 81, upper 81 (expected 80)
+REPRODUCED
+exit=1
+=== puncc__jackknife_plus__K-n__raises.py
+puncc 0.9.3, numpy 1.26.4
+n=9, alpha=1/5 (passed as 0.2): k=8 <= n: a finite valid set exists
+seed 0: raised TypeError: object of type 'numpy.float64' has no len()
+REPRODUCED
+exit=1

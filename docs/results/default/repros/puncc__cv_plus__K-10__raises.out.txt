@@ -1,0 +1,4 @@
+puncc 0.9.3, numpy 2.5.4
+n=19, alpha=1/5 (passed as 0.2): k=16 <= n: a finite valid set exists
+seed 0: raised TypeError: object of type 'numpy.float64' has no len()
+REPRODUCED

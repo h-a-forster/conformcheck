@@ -1,0 +1,6 @@
+mapie 1.6.0, numpy 2.5.4
+n=10, alpha=1/11 (passed as 0.09090909090909091): k=10 <= n: a finite valid set exists
+seed 0: raised ValueError: Number of samples of the score is too low,
+1/confidence_level and 1/(1 - confidence_level) must be
+lower than the number of samples.
+REPRODUCED

@@ -1,0 +1,8 @@
+crepes 0.9.1, numpy 2.5.4
+n=9, alpha=1/5 (passed as 0.2): split conformal must use the k=8-th smallest calibration score
+seed 0: threshold 1.06646 -> order statistic used 9 (expected 8)
+seed 1: threshold 3.01116 -> order statistic used 9 (expected 8)
+seed 2: threshold 1.7567 -> order statistic used 9 (expected 8)
+seed 3: threshold 1.63509 -> order statistic used 9 (expected 8)
+seed 4: threshold 2.1296 -> order statistic used 9 (expected 8)
+REPRODUCED

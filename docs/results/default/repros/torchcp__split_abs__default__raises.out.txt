@@ -1,0 +1,4 @@
+torchcp 1.2.1, numpy 2.5.4
+n=5, alpha=1/10 (passed as 0.1): k=6 > n: a trivial set is required
+seed 0: raised AttributeError: 'float' object has no attribute 'shape'
+REPRODUCED

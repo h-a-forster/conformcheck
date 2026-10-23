@@ -1,0 +1,8 @@
+mapie 1.6.0, numpy 2.5.4
+n=999, K=10 folds, alpha=1/20 (passed as 0.05): with a constant model both endpoints must be the k=950-th smallest |y|
+seed 0: order statistic used lower 951, upper 950 (expected 950)
+seed 1: order statistic used lower 951, upper 950 (expected 950)
+seed 2: order statistic used lower 951, upper 950 (expected 950)
+seed 3: order statistic used lower 951, upper 950 (expected 950)
+seed 4: order statistic used lower 951, upper 950 (expected 950)
+REPRODUCED

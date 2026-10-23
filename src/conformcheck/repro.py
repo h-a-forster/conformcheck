@@ -6,13 +6,15 @@ library through its public API and prints what it expected and what it observed.
 exits with status 1 while the finding reproduces and 0 otherwise (docs/DESIGN.md,
 section 8.3). Three kinds:
 
-* ``rank``: split regression; the order statistic used is read off the interval and
-  compared with ``k = ceil((n + 1)(1 - alpha))`` over a few seeds (deterministic).
+* ``rank``: split regression, or CV+ / jackknife+ with a constant model; the order
+  statistic used is read off the interval and compared with
+  ``k = ceil((n + 1)(1 - alpha))`` over a few seeds (deterministic).
 * ``coverage``: Monte Carlo coverage over ``R`` calibration draws against the exact
   target, with the exact standard error of the BetaBinomial law (or the empirical one);
   reproduces when ``|z| > 4``.
 * ``raises``: the library raises at a level where a finite valid set exists (or crashes
-  where a trivial set is required).
+  where a trivial set is required). Seeds 0-49 are tried, since some failures depend on
+  the calibration draw.
 
 Clusters: one script per (row, mechanism); the representative cell is the non-PASS cell
 with the smallest ``n`` (ties broken by alpha).
@@ -41,6 +43,20 @@ from importlib.metadata import version
 import numpy as np
 
 warnings.simplefilter("ignore")
+
+
+def _crash(kind, value, tb):  # an unexpected crash exits 2, never 1 ("reproduced")
+    import traceback
+
+    traceback.print_exception(kind, value, tb)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    import os
+
+    os._exit(2)
+
+
+sys.excepthook = _crash
 '''
 
 TORCHCP_STUBS = """
@@ -118,6 +134,21 @@ class FixedClassifier(ClassifierMixin, BaseEstimator):
         return self.predict_proba(X).argmax(axis=1)
 
 
+class ZeroRegressor(RegressorMixin, BaseEstimator):
+    """Ignores its training data and predicts 0: every leave-one-out or out-of-fold
+    model is the same, so jackknife+ and CV+ reduce to split conformal on all n points
+    with scores |y|, and the order statistic used can be read off the interval."""
+
+    def fit(self, X, y=None):
+        self.n_features_in_ = np.asarray(X).shape[1]
+        return self
+
+    def predict(self, X):
+        return np.zeros(len(X))
+
+
+QUANTILE_MODELS = [FixedRegressor(-1.3), FixedRegressor(1.9), FixedRegressor(0.3)]  # lo hi med
+
 MEANS = np.array([[0.0, 0.0], [2.0, 0.0], [0.0, 2.0], [2.0, 2.0]])
 
 
@@ -151,6 +182,44 @@ def intervals(x_cal, y_cal, x_test, alpha):
     r = SplitConformalRegressor(MODEL, confidence_level=float(1 - alpha), prefit=True)
     r.conformalize(x_cal, y_cal)
     return r.predict_interval(x_test, allow_infinite_bounds=True)[1][:, :, 0]
+""",
+    "mapie/cqr/symmetric": """
+from mapie.regression import ConformalizedQuantileRegressor
+LIB = "mapie"
+SYMMETRIC = True
+def intervals(x_cal, y_cal, x_test, alpha):
+    r = ConformalizedQuantileRegressor(QUANTILE_MODELS, confidence_level=float(1 - alpha),
+                                       prefit=True)
+    r.conformalize(x_cal, y_cal)
+    return r.predict_interval(x_test, symmetric_correction=SYMMETRIC)[1][:, :, 0]
+""",
+    "mapie/cqr/asymmetric": """
+from mapie.regression import ConformalizedQuantileRegressor
+LIB = "mapie"
+SYMMETRIC = False
+def intervals(x_cal, y_cal, x_test, alpha):
+    r = ConformalizedQuantileRegressor(QUANTILE_MODELS, confidence_level=float(1 - alpha),
+                                       prefit=True)
+    r.conformalize(x_cal, y_cal)
+    return r.predict_interval(x_test, symmetric_correction=SYMMETRIC)[1][:, :, 0]
+""",
+    "torchcp/cqr/default": """
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from torchcp.regression.predictor import SplitPredictor
+from torchcp.regression.score import CQR
+LIB = "torchcp"
+class Identity(torch.nn.Module):
+    def forward(self, x):
+        return x
+def intervals(x_cal, y_cal, x_test, alpha):
+    lo, hi = QUANTILE_MODELS[0], QUANTILE_MODELS[1]
+    f = lambda x: torch.tensor(np.column_stack([lo.predict(x), hi.predict(x)]),
+                               dtype=torch.float32)
+    ds = TensorDataset(f(x_cal), torch.tensor(y_cal, dtype=torch.float32))
+    p = SplitPredictor(score_function=CQR(), model=Identity(), device="cpu")
+    p.calibrate(DataLoader(ds, batch_size=len(y_cal)), alpha=float(alpha))
+    return p.predict(f(x_test)).numpy().reshape(len(x_test), -1, 2)[:, 0, :].astype(float)
 """,
     "crepes/split_abs/default": """
 from crepes import WrapRegressor
@@ -191,8 +260,9 @@ from deel.puncc.api.prediction import BasePredictor
 from deel.puncc.regression import CVPlus
 from sklearn.linear_model import LinearRegression
 LIB = "puncc"
+ESTIMATOR = LinearRegression
 def intervals_cross(x, y, x_test, alpha, seed, n_folds):
-    cp = CVPlus(BasePredictor(LinearRegression()), K=n_folds, random_state=seed)
+    cp = CVPlus(BasePredictor(ESTIMATOR()), K=n_folds, random_state=seed)
     cp.fit(X=x, y=y)
     _, lo, hi = cp.predict(x_test, alpha=float(alpha))
     return np.column_stack([lo, hi])
@@ -202,9 +272,10 @@ from mapie.regression import CrossConformalRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold, LeaveOneOut
 LIB = "mapie"
+ESTIMATOR = LinearRegression
 def intervals_cross(x, y, x_test, alpha, seed, n_folds):
     cv = LeaveOneOut() if n_folds == len(y) else KFold(n_folds, shuffle=True, random_state=seed)
-    r = CrossConformalRegressor(LinearRegression(), confidence_level=float(1 - alpha), cv=cv)
+    r = CrossConformalRegressor(ESTIMATOR(), confidence_level=float(1 - alpha), cv=cv)
     r.fit_conformalize(x, y)
     return r.predict_interval(x_test, allow_infinite_bounds=True)[1][:, :, 0]
 """,
@@ -306,6 +377,31 @@ print("REPRODUCED" if bad else "not reproduced")
 sys.exit(1 if bad else 0)
 """
 
+CROSS_RANK_HARNESS = """
+ESTIMATOR = ZeroRegressor  # constant model: CV+ / jackknife+ reduce to split on all n
+N, ALPHA, FOLDS = {n}, Fraction("{alpha}"), {folds}
+K = math.ceil((N + 1) * (1 - ALPHA))
+print(f"{{LIB}} {{version(LIB)}}, numpy {{np.__version__}}")
+print(f"n={{N}}, K={{FOLDS}} folds, alpha={{ALPHA}} (passed as {{float(ALPHA)!r}}): with a "
+      f"constant model both endpoints must be the k={{K}}-th smallest |y|")
+bad = 0
+for seed in range(5):
+    rng = np.random.default_rng(seed)
+    x, y = reg_data(rng, N)
+    x_test, _ = reg_data(rng, 3)
+    iv = np.asarray(intervals_cross(x, y, x_test, ALPHA, seed, FOLDS), dtype=float)
+    s = np.sort(np.abs(y))
+    used = []
+    for q in (-iv[0, 0], iv[0, 1]):
+        tol = 1e-6 * max(1.0, abs(q)) if math.isfinite(q) else 0
+        used.append(N + 1 if math.isinf(q) else int(np.sum(s <= q + tol)))
+    print(f"seed {{seed}}: order statistic used lower {{used[0]}}, upper {{used[1]}} "
+          f"(expected {{K}})")
+    bad += any(u != K for u in used)
+print("REPRODUCED" if bad else "not reproduced")
+sys.exit(1 if bad else 0)
+"""
+
 COVERAGE_HARNESS = """
 from scipy import stats
 MODEL = {model}
@@ -314,11 +410,21 @@ TARGET, EXACT = {target!r}, {exact!r}   # exact: BetaBinomial(M, k, n + 1 - k) l
 PER_CLASS = {per_class!r}
 print(f"{{LIB}} {{version(LIB)}}, numpy {{np.__version__}}")
 counts = []
+skipped = 0
 for rep in range(R):
     rng = np.random.default_rng(rep)
+    try:
 {draw}
+    except Exception as exc:  # e.g. a class missing from a small calibration set
+        skipped += 1
+        if skipped == 1:
+            print(f"draw {{rep}} skipped: {{type(exc).__name__}}: {{exc}}")
+        continue
     counts.append(int(covered.sum()))
+if skipped:
+    print(f"{{skipped}} of {{R}} draws raised and were skipped")
 counts = np.array(counts)
+R = len(counts)
 cov = counts.mean() / M
 if EXACT:
     k = math.ceil((N + 1) * (1 - ALPHA))
@@ -342,15 +448,17 @@ K = math.ceil((N + 1) * (1 - ALPHA))
 print(f"{{LIB}} {{version(LIB)}}, numpy {{np.__version__}}")
 print(f"n={{N}}, alpha={{ALPHA}} (passed as {{float(ALPHA)!r}}): k={{K}} "
       f"{{'> n: a trivial set is required' if K > N else '<= n: a finite valid set exists'}}")
-rng = np.random.default_rng(0)
-try:
+# some failures depend on the calibration draw (e.g. a class missing): try 50 seeds
+for seed in range(50):
+    rng = np.random.default_rng(seed)
+    try:
 {call}
-    print("returned normally")
-    sys.exit(0)
-except Exception as exc:
-    print(f"raised {{type(exc).__name__}}: {{exc}}")
-    print("REPRODUCED")
-    sys.exit(1)
+    except Exception as exc:
+        print(f"seed {{seed}}: raised {{type(exc).__name__}}: {{exc}}")
+        print("REPRODUCED")
+        sys.exit(1)
+print("returned normally for seeds 0-49")
+sys.exit(0)
 """
 
 
@@ -403,6 +511,12 @@ def _mechanism(cell: Cell) -> str:
         and any(float(k) != 0 for k in cell.rank_offsets)
     ):
         return "rank"
+    if (
+        cell.method in ("cv_plus", "jackknife_plus")
+        and cell.dgp == "reg_constant"
+        and any(o != "0|0" for o in cell.rank_pairs)
+    ):
+        return "rank"
     return "coverage"
 
 
@@ -416,26 +530,30 @@ def _script(cell: Cell, kind: str, snippet: str) -> str:
     model = "FixedClassifier()" if is_cls else "FixedRegressor()"
     alpha = cell.alpha
     if kind == "rank":
+        if cell.method in ("cv_plus", "jackknife_plus"):
+            nf = cell.n if cell.method == "jackknife_plus" else cell.n_folds
+            return body + CROSS_RANK_HARNESS.format(n=cell.n, alpha=alpha, folds=nf)
         return body + RANK_HARNESS.format(n=cell.n, alpha=alpha)
-    if kind == "raises":
+    if kind.startswith("raises"):
         if cell.method in ("cv_plus", "jackknife_plus"):
             nf = cell.n if cell.method == "jackknife_plus" else cell.n_folds
             call = (
-                f"    x, y = reg_data(rng, N)\n    x_test, _ = reg_data(rng, 3)\n"
-                f"    print(intervals_cross(x, y, x_test, ALPHA, 0, {nf})[:1])"
+                f"        x, y = reg_data(rng, N)\n        x_test, _ = reg_data(rng, 3)\n"
+                f"        intervals_cross(x, y, x_test, ALPHA, seed, {nf})"
             )
         elif is_cls:
             per = cell.method == "class_conditional"
             nn = "4 * N" if per else "N"
             call = (
-                f"    x_cal, y_cal = cls_data(rng, {nn}, per_class={per})\n"
-                f"    x_test, _ = cls_data(rng, 8)\n"
-                f"    print(sets(x_cal, y_cal, x_test, ALPHA, 0)[:1])"
+                f"        x_cal, y_cal = cls_data(rng, {nn}, per_class={per})\n"
+                f"        x_test, _ = cls_data(rng, 8)\n"
+                f"        sets(x_cal, y_cal, x_test, ALPHA, seed)"
             )
         else:
             call = (
-                "    x_cal, y_cal = reg_data(rng, N)\n    x_test, _ = reg_data(rng, 3)\n"
-                "    print(intervals(x_cal, y_cal, x_test, ALPHA)[:1])"
+                "        x_cal, y_cal = reg_data(rng, N)\n"
+                "        x_test, _ = reg_data(rng, 3)\n"
+                "        intervals(x_cal, y_cal, x_test, ALPHA)"
             )
         return body + RAISES_HARNESS.format(model=model, n=cell.n, alpha=alpha, call=call)
     # coverage
@@ -445,22 +563,22 @@ def _script(cell: Cell, kind: str, snippet: str) -> str:
         per = cell.method == "class_conditional"
         nn = "4 * N" if per else "N"
         draw = (
-            f"    x_cal, y_cal = cls_data(rng, {nn}, per_class=PER_CLASS)\n"
-            f"    x_test, y_test = cls_data(rng, M, per_class=PER_CLASS)\n"
-            f"    covered = sets(x_cal, y_cal, x_test, ALPHA, rep)[np.arange(M), y_test]"
+            f"        x_cal, y_cal = cls_data(rng, {nn}, per_class=PER_CLASS)\n"
+            f"        x_test, y_test = cls_data(rng, M, per_class=PER_CLASS)\n"
+            f"        covered = sets(x_cal, y_cal, x_test, ALPHA, rep)[np.arange(M), y_test]"
         )
     elif cell.method in ("cv_plus", "jackknife_plus"):
         nf = cell.n if cell.method == "jackknife_plus" else cell.n_folds
         draw = (
-            f"    x, y = reg_data(rng, N)\n    x_test, y_test = reg_data(rng, M)\n"
-            f"    iv = intervals_cross(x, y, x_test, ALPHA, rep, {nf})\n"
-            f"    covered = (iv[:, 0] <= y_test) & (y_test <= iv[:, 1])"
+            f"        x, y = reg_data(rng, N)\n        x_test, y_test = reg_data(rng, M)\n"
+            f"        iv = intervals_cross(x, y, x_test, ALPHA, rep, {nf})\n"
+            f"        covered = (iv[:, 0] <= y_test) & (y_test <= iv[:, 1])"
         )
     else:
         draw = (
-            "    x_cal, y_cal = reg_data(rng, N)\n    x_test, y_test = reg_data(rng, M)\n"
-            "    iv = intervals(x_cal, y_cal, x_test, ALPHA)\n"
-            "    covered = (iv[:, 0] <= y_test) & (y_test <= iv[:, 1])"
+            "        x_cal, y_cal = reg_data(rng, N)\n        x_test, y_test = reg_data(rng, M)\n"
+            "        iv = intervals(x_cal, y_cal, x_test, ALPHA)\n"
+            "        covered = (iv[:, 0] <= y_test) & (y_test <= iv[:, 1])"
         )
     exact = cell.law_kind == "exact" and not cell.one_sided
     return body + COVERAGE_HARNESS.format(
@@ -476,9 +594,23 @@ def _script(cell: Cell, kind: str, snippet: str) -> str:
     )
 
 
+def _raise_kind(c: Cell) -> str:
+    msg = c.message.split(":", 1)
+    return (msg[0] + ":" + msg[1][:40]) if len(msg) == 2 else c.message[:50]
+
+
 def clusters(cells: list[Cell], include_controls: bool = True) -> list[tuple[Cell, str]]:
-    """One representative cell per (row, mechanism) among non-PASS cells."""
-    best: dict[tuple[str, str], Cell] = {}
+    """One representative cell per (row, mechanism) among non-PASS cells; raises are
+    split further by exception message (``raises``, ``raises-2``, ...)."""
+    synthetic = ("reg_gauss", "cls_gauss", "reg_constant")
+
+    def rank(c: Cell) -> tuple:  # type: ignore[type-arg]
+        a = Fraction(c.alpha)
+        edge = a in (Fraction(1, c.n + 1), Fraction(9, 10 * (c.n + 1)))
+        # synthetic DGPs first (the scripts rebuild those), then base alphas, then small n
+        return (c.dgp not in synthetic, edge, c.n, -a)
+
+    best: dict[tuple[str, str, str], Cell] = {}
     for c in cells:
         if c.status in ("PASS", "REFUSED"):
             continue
@@ -487,17 +619,16 @@ def clusters(cells: list[Cell], include_controls: bool = True) -> list[tuple[Cel
         if c.is_control and c.method != "split_abs":
             continue
         mech = _mechanism(c)
-        key = (c.row, mech)
+        key = (c.row, mech, _raise_kind(c) if mech == "raises" else "")
         cur = best.get(key)
-        # prefer the synthetic DGPs (the scripts rebuild those), then small n
-        rank = (c.dgp not in ("reg_gauss", "cls_gauss", "reg_constant"), c.n, -Fraction(c.alpha))
-        if cur is None or rank < (
-            cur.dgp not in ("reg_gauss", "cls_gauss", "reg_constant"),
-            cur.n,
-            -Fraction(cur.alpha),
-        ):
+        if cur is None or rank(c) < rank(cur):
             best[key] = c
-    return [(c, mech) for (_, mech), c in sorted(best.items())]
+    out: list[tuple[Cell, str]] = []
+    seen: dict[tuple[str, str], int] = {}
+    for (row, mech, _), c in sorted(best.items()):
+        i = seen[(row, mech)] = seen.get((row, mech), 0) + 1
+        out.append((c, mech if i == 1 else f"{mech}-{i}"))
+    return out
 
 
 def write_repros(

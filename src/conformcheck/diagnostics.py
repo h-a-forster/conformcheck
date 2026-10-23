@@ -22,7 +22,10 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-REL_TOL = 1e-6  # covers float32 libraries (TorchCP); scores are continuous elsewhere
+REL_TOL = 1e-6  # relative to the magnitude of the values a threshold was computed from
+# A float32 library (TorchCP) returns endpoints rounded to about 6e-8 relative to their
+# own magnitude, so a threshold read off as ``endpoint - prediction`` carries an error of
+# that order times ``|endpoint|``, not times ``|q|``. ``scale`` passes that magnitude.
 
 
 @dataclass(frozen=True)
@@ -50,10 +53,13 @@ class RankRange:
         return 0
 
 
-def rank_range(scores: NDArray[np.float64], q: float, rel_tol: float = REL_TOL) -> RankRange:
+def rank_range(
+    scores: NDArray[np.float64], q: float, rel_tol: float = REL_TOL, scale: float = 1.0
+) -> RankRange:
     """Order statistics ``j`` with ``s_(j)`` equal to ``q`` within tolerance (see module doc).
 
-    ``q = +inf`` maps to ``n + 1`` (trivial set) and ``q = -inf`` to ``0``.
+    The tolerance is ``rel_tol * max(1, |q|, scale)``. ``q = +inf`` maps to ``n + 1``
+    (trivial set) and ``q = -inf`` to ``0``.
     """
     s = np.asarray(scores, dtype=float)
     n = s.size
@@ -62,7 +68,7 @@ def rank_range(scores: NDArray[np.float64], q: float, rel_tol: float = REL_TOL) 
         return RankRange(j, j)
     if math.isnan(q):
         return RankRange(0, -1)
-    tol = rel_tol * max(1.0, abs(q))
+    tol = rel_tol * max(1.0, abs(q), scale)
     k_lo = int(np.sum(s < q - tol)) + 1
     k_hi = int(np.sum(s <= q + tol))
     return RankRange(k_lo, k_hi)
@@ -82,6 +88,17 @@ def _threshold(estimates: NDArray[np.float64]) -> tuple[float, float]:
 
 def _with_spread(r: RankRange, spread: float) -> RankRange:
     return RankRange(r.k_lo, r.k_hi, spread)
+
+
+def _scale(*arrays: NDArray[np.float64]) -> float:
+    """Largest finite magnitude among the values a threshold was computed from."""
+    m = 1.0
+    for a in arrays:
+        v = np.abs(np.asarray(a, dtype=float))
+        v = v[np.isfinite(v)]
+        if v.size:
+            m = max(m, float(v.max()))
+    return m
 
 
 def regression_ranks(
@@ -116,9 +133,10 @@ def regression_ranks(
             q_lo, s_lo = _threshold(pt - lo)
             q_hi, s_hi = _threshold(hi - pt)
         # each endpoint separately: an asymmetric off-by-one shows up on one side only
+        sc = _scale(lo, hi, pt, y)
         return [
-            _with_spread(rank_range(scores, q_lo), s_lo),
-            _with_spread(rank_range(scores, q_hi), s_hi),
+            _with_spread(rank_range(scores, q_lo, scale=sc), s_lo),
+            _with_spread(rank_range(scores, q_hi, scale=sc), s_hi),
         ]
     if method == "cqr":
         if q_cal is None or q_test is None:
@@ -128,15 +146,16 @@ def regression_ranks(
         with np.errstate(invalid="ignore"):
             q_lo, s_lo = _threshold(lo_t - lo)
             q_hi, s_hi = _threshold(hi - hi_t)
+        sc = _scale(lo, hi, lo_t, hi_t, lo_c, hi_c, y)
         if variant == "asymmetric":
             return [
-                _with_spread(rank_range(lo_c - y, q_lo), s_lo),
-                _with_spread(rank_range(y - hi_c, q_hi), s_hi),
+                _with_spread(rank_range(lo_c - y, q_lo, scale=sc), s_lo),
+                _with_spread(rank_range(y - hi_c, q_hi, scale=sc), s_hi),
             ]
         scores = np.maximum(lo_c - y, y - hi_c)
         return [
-            _with_spread(rank_range(scores, q_lo), s_lo),
-            _with_spread(rank_range(scores, q_hi), s_hi),
+            _with_spread(rank_range(scores, q_lo, scale=sc), s_lo),
+            _with_spread(rank_range(scores, q_hi, scale=sc), s_hi),
         ]
     return None
 

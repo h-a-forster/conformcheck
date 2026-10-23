@@ -1,0 +1,243 @@
+{
+  "repros": [
+    {
+      "title": "crepes/class_conditional/unsmoothed coverage: CONSERVATIVE at cls_gauss n=9 alpha=1/5",
+      "file": "crepes__class_conditional__unsmoothed__coverage.py",
+      "row": "crepes/class_conditional/unsmoothed",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "crepes/lac/unsmoothed coverage: CONSERVATIVE at cls_gauss n=9 alpha=1/5",
+      "file": "crepes__lac__unsmoothed__coverage.py",
+      "row": "crepes/lac/unsmoothed",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "crepes/split_abs/default coverage: CONSERVATIVE at reg_tied n=9 alpha=1/5",
+      "file": "crepes__split_abs__default__coverage.py",
+      "row": "crepes/split_abs/default",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "crepes/split_abs/default rank: CONSERVATIVE at reg_gauss n=9 alpha=1/5",
+      "file": "crepes__split_abs__default__rank.py",
+      "row": "crepes/split_abs/default",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=False coverage: FAIL at cls_gauss n=10 alpha=1/5",
+      "file": "mapie__aps__include_last_label-False__coverage.py",
+      "row": "mapie/aps/include_last_label=False",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=False raises: ERROR at cls_gauss n=5 alpha=1/5",
+      "file": "mapie__aps__include_last_label-False__raises.py",
+      "row": "mapie/aps/include_last_label=False",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=False raises-2: OVER_REFUSED at cls_gauss n=10 alpha=1/11",
+      "file": "mapie__aps__include_last_label-False__raises-2.py",
+      "row": "mapie/aps/include_last_label=False",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=True coverage: CONSERVATIVE at cls_gauss n=10 alpha=1/5",
+      "file": "mapie__aps__include_last_label-True__coverage.py",
+      "row": "mapie/aps/include_last_label=True",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=True raises: ERROR at cls_gauss n=5 alpha=1/5",
+      "file": "mapie__aps__include_last_label-True__raises.py",
+      "row": "mapie/aps/include_last_label=True",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=True raises-2: OVER_REFUSED at cls_gauss n=10 alpha=1/11",
+      "file": "mapie__aps__include_last_label-True__raises-2.py",
+      "row": "mapie/aps/include_last_label=True",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=randomized raises: ERROR at cls_gauss n=5 alpha=1/5",
+      "file": "mapie__aps__include_last_label-randomized__raises.py",
+      "row": "mapie/aps/include_last_label=randomized",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/aps/include_last_label=randomized raises-2: OVER_REFUSED at cls_gauss n=10 alpha=1/11",
+      "file": "mapie__aps__include_last_label-randomized__raises-2.py",
+      "row": "mapie/aps/include_last_label=randomized",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/cqr/asymmetric raises: OVER_REFUSED at reg_gauss n=9 alpha=1/5",
+      "file": "mapie__cqr__asymmetric__raises.py",
+      "row": "mapie/cqr/asymmetric",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/cqr/symmetric raises: OVER_REFUSED at reg_gauss n=5 alpha=1/6",
+      "file": "mapie__cqr__symmetric__raises.py",
+      "row": "mapie/cqr/symmetric",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/cv_plus/K=10 rank: CONSERVATIVE at reg_constant n=999 alpha=1/20",
+      "file": "mapie__cv_plus__K-10__rank.py",
+      "row": "mapie/cv_plus/K=10",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/cv_plus/K=5 rank: CONSERVATIVE at reg_constant n=999 alpha=1/20",
+      "file": "mapie__cv_plus__K-5__rank.py",
+      "row": "mapie/cv_plus/K=5",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/lac/default raises: OVER_REFUSED at cls_gauss n=5 alpha=1/6",
+      "file": "mapie__lac__default__raises.py",
+      "row": "mapie/lac/default",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "mapie/split_abs/default raises: OVER_REFUSED at reg_gauss n=5 alpha=1/6",
+      "file": "mapie__split_abs__default__raises.py",
+      "row": "mapie/split_abs/default",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/cv_plus/K=10 raises: ERROR at reg_constant n=19 alpha=1/5",
+      "file": "puncc__cv_plus__K-10__raises.py",
+      "row": "puncc/cv_plus/K=10",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/cv_plus/K=10 raises-2: ERROR at reg_constant n=20 alpha=1/21",
+      "file": "puncc__cv_plus__K-10__raises-2.py",
+      "row": "puncc/cv_plus/K=10",
+      "kind": "raises-2",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/cv_plus/K=10 rank: CONSERVATIVE at reg_constant n=99 alpha=1/5",
+      "file": "puncc__cv_plus__K-10__rank.py",
+      "row": "puncc/cv_plus/K=10",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/cv_plus/K=5 raises: ERROR at reg_constant n=20 alpha=1/21",
+      "file": "puncc__cv_plus__K-5__raises.py",
+      "row": "puncc/cv_plus/K=5",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/cv_plus/K=5 rank: CONSERVATIVE at reg_constant n=99 alpha=1/5",
+      "file": "puncc__cv_plus__K-5__rank.py",
+      "row": "puncc/cv_plus/K=5",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "puncc/jackknife_plus/K=n raises: ERROR at reg_constant n=9 alpha=1/5",
+      "file": "puncc__jackknife_plus__K-n__raises.py",
+      "row": "puncc/jackknife_plus/K=n",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/k_minus_1 coverage: FAIL at reg_tied n=5 alpha=1/5",
+      "file": "reference__split_abs__k_minus_1__coverage.py",
+      "row": "reference/split_abs/k_minus_1",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/k_minus_1 rank: FAIL at reg_gauss n=5 alpha=1/5",
+      "file": "reference__split_abs__k_minus_1__rank.py",
+      "row": "reference/split_abs/k_minus_1",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/k_plus_1 coverage: CONSERVATIVE at reg_tied n=5 alpha=1/5",
+      "file": "reference__split_abs__k_plus_1__coverage.py",
+      "row": "reference/split_abs/k_plus_1",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/k_plus_1 rank: CONSERVATIVE at reg_gauss n=5 alpha=1/5",
+      "file": "reference__split_abs__k_plus_1__rank.py",
+      "row": "reference/split_abs/k_plus_1",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/n_instead_of_n_plus_1 coverage: FAIL at reg_tied n=5 alpha=1/5",
+      "file": "reference__split_abs__n_instead_of_n_plus_1__coverage.py",
+      "row": "reference/split_abs/n_instead_of_n_plus_1",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/n_instead_of_n_plus_1 rank: FAIL at reg_gauss n=5 alpha=1/5",
+      "file": "reference__split_abs__n_instead_of_n_plus_1__rank.py",
+      "row": "reference/split_abs/n_instead_of_n_plus_1",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/no_correction_linear coverage: FAIL at reg_tied n=5 alpha=1/5",
+      "file": "reference__split_abs__no_correction_linear__coverage.py",
+      "row": "reference/split_abs/no_correction_linear",
+      "kind": "coverage",
+      "exit_code": 1
+    },
+    {
+      "title": "reference/split_abs/no_correction_linear rank: FAIL at reg_gauss n=5 alpha=1/5",
+      "file": "reference__split_abs__no_correction_linear__rank.py",
+      "row": "reference/split_abs/no_correction_linear",
+      "kind": "rank",
+      "exit_code": 1
+    },
+    {
+      "title": "torchcp/cqr/default raises: ERROR at reg_gauss n=5 alpha=1/10",
+      "file": "torchcp__cqr__default__raises.py",
+      "row": "torchcp/cqr/default",
+      "kind": "raises",
+      "exit_code": 1
+    },
+    {
+      "title": "torchcp/split_abs/default raises: ERROR at reg_gauss n=5 alpha=1/10",
+      "file": "torchcp__split_abs__default__raises.py",
+      "row": "torchcp/split_abs/default",
+      "kind": "raises",
+      "exit_code": 1
+    }
+  ],
+  "skipped": []
+}

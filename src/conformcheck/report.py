@@ -27,7 +27,7 @@ from typing import Any
 import numpy as np
 from scipy import stats as sps
 
-from conformcheck import stats
+from conformcheck import laws, stats
 from conformcheck.runner import iter_records
 from conformcheck.study import cell_law
 
@@ -316,35 +316,74 @@ def _alpha_label(a: str) -> str:
     return f"{dec:g}" if Fraction(repr(dec)) == f else a
 
 
+def mutant_is_identical(n: int, alpha: Fraction, mutant: str) -> bool:
+    """True when a mutant uses the same order statistic as the correct method at
+    ``(n, alpha)``, so it cannot be detected and is left out of the power counts."""
+    k = laws.split_index(n, alpha)
+    if mutant == "n_instead_of_n_plus_1":
+        return math.ceil(n * (1 - alpha)) == k
+    if mutant == "no_correction_linear":
+        h = (n - 1) * (1 - alpha)  # 0-based position of numpy's linear quantile
+        return h.denominator == 1 and int(h) + 1 == k
+    return False
+
+
 def controls_summary(cells: list[Cell]) -> dict[str, Any]:
-    """Size (reference rows) and power (mutant rows) of the oracle, per n."""
+    """Size (reference rows) and power (mutant rows) of the oracle, per n.
+
+    Size: the cell p-value is conservative by construction (``2 min`` of two tests, both
+    discrete), so its distribution is not uniform under the null and a uniformity test
+    on it is meaningless. The calibration check uses the exact two-sided mean test alone:
+    under the null ``P(p_mean <= 0.05) <= 0.05``, and a one-sided binomial test asks
+    whether the reference rows reject more often than that.
+    """
     ref = [c for c in cells if c.library == "reference"]
     from conformcheck.reference import MUTANTS
 
     ref_main = [c for c in ref if c.variant not in MUTANTS]
     stat_main = [c for c in ref_main if c.statistical]
-    ref_p = [c.p_cell for c in stat_main if c.law_kind == "exact" and c.p_cell is not None]
-    ks = sps.kstest(ref_p, "uniform").pvalue if len(ref_p) >= 5 else None
+    exact_p = [
+        c.p_mean
+        for c in stat_main
+        if c.law_kind == "exact" and not c.one_sided and c.p_mean is not None
+    ]
+    raw = sum(p <= 0.05 for p in exact_p)
+    binom_p = (
+        float(sps.binomtest(raw, len(exact_p), 0.05, alternative="greater").pvalue)
+        if exact_p
+        else None
+    )
     size = {
         "reference_cells": len(ref_main),
         "reference_statistical_cells": len(stat_main),
         "reference_holm_rejections": sum(c.stat_status != "PASS" for c in stat_main),
         "reference_nonpass_cells": sum(c.status != "PASS" for c in ref_main),
         "reference_raw_rejections_at_0.05": sum((c.p_cell or 1) <= 0.05 for c in stat_main),
-        "reference_ks_uniform_p": ks,
+        "reference_exact_mean_tests": len(exact_p),
+        "reference_exact_mean_rejections_at_0.05": raw,
+        "reference_exact_mean_binom_p": binom_p,
     }
     power: dict[str, dict[str, Any]] = {}
     for mut in MUTANTS:
         cs = [c for c in ref if c.variant == mut and c.law_kind != "trivial"]
         if not cs:
             continue
-        per_n: dict[int, list[int]] = defaultdict(lambda: [0, 0, 0])
+        per_n: dict[int, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
         for c in cs:
-            per_n[c.n][0] += 1
-            per_n[c.n][1] += c.stat_status != "PASS"
-            per_n[c.n][2] += c.status != "PASS"
+            v = per_n[c.n]
+            if c.k > c.n or mutant_is_identical(c.n, Fraction(c.alpha), mut):
+                v[3] += 1
+                continue
+            v[0] += 1
+            v[1] += c.stat_status != "PASS"
+            v[2] += c.status != "PASS"
         power[mut] = {
-            str(n): {"cells": v[0], "stat_detected": v[1], "any_detected": v[2]}
+            str(n): {
+                "cells": v[0],
+                "stat_detected": v[1],
+                "any_detected": v[2],
+                "identical_excluded": v[3],
+            }
             for n, v in sorted(per_n.items())
         }
     return {"size": size, "power": power}
@@ -500,13 +539,15 @@ def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[s
             for k, val in ctl["size"].items()
         ),
         "",
-        "Power (mutants; statistical detections / cells per n, deterministic included in 'any'):",
+        "Power (mutants; statistical detections / cells per n, deterministic included in "
+        "'any'; cells where the mutant uses the correct order statistic are excluded):",
         "",
     ]
     for mut, per_n in ctl["power"].items():
         parts = [
             f"n={n}: {d['stat_detected']}/{d['cells']} (any {d['any_detected']})"
             for n, d in per_n.items()
+            if d["cells"]
         ]
         lines.append(f"- `{mut}`: " + "; ".join(parts))
     lines += ["", "## Flagged rows", ""]

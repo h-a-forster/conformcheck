@@ -1,0 +1,4 @@
+mapie 1.6.0, numpy 2.5.4
+n=5, alpha=1/5 (passed as 0.2): k=5 <= n: a finite valid set exists
+seed 3: raised ValueError: Invalid conformity score for binary target. The only valid score is 'lac'.
+REPRODUCED
