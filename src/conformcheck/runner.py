@@ -164,6 +164,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "warnings": [],
             "nontrivial": 0,
             "rank_offsets": Counter(),
+            "rank_pairs": Counter(),
             "rank_interp": 0,
             "rank_spread": 0.0,
             "bracket_offsets": Counter(),
@@ -269,6 +270,8 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
                 if ranks:
                     worst = max(ranks, key=lambda r: abs(r.offset(cl.k)))  # type: ignore[arg-type]
                     st["rank_offsets"][str(worst.offset(cl.k))] += 1  # type: ignore[arg-type]
+                    pair = "|".join(f"{r.offset(cl.k):g}" for r in ranks)  # type: ignore[arg-type]
+                    st["rank_pairs"][pair] += 1
                     st["rank_interp"] += int(any(r.interpolated for r in ranks))
                     spread = max(r.spread for r in ranks)
                     if math.isfinite(spread):
@@ -311,6 +314,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "warnings": st["warnings"],
             "nontrivial": st["nontrivial"],
             "rank_offsets": dict(st["rank_offsets"]),
+            "rank_pairs": dict(st["rank_pairs"]),  # "lower|upper" endpoint offsets
             "rank_interp": st["rank_interp"],
             "rank_spread": st["rank_spread"],
             "bracket_offsets": dict(st["bracket_offsets"]),

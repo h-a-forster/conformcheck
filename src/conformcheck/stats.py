@@ -127,9 +127,13 @@ def _t_test(
     if r < 2:
         return MeanTest(1.0, t, expected, 0.0, _direction(t, expected))
     sd = float(np.std(s, ddof=1))
-    if sd == 0.0:
-        same = math.isclose(t, expected, abs_tol=1e-9)
-        return MeanTest(1.0 if same else 0.0, t, expected, 0.0, _direction(t, expected))
+    if sd == 0.0:  # every repetition gave the same count
+        direction = _direction(t, expected)
+        if alternative == "less":
+            p = 0.0 if direction == "below" else 1.0
+        else:
+            p = 1.0 if direction == "equal" else 0.0
+        return MeanTest(p, t, expected, 0.0, direction)
     z = (t / r - m * coverage) / (sd / math.sqrt(r))
     if alternative == "less":
         p = float(stats.t.cdf(z, df=r - 1))

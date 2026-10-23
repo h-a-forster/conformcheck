@@ -96,12 +96,13 @@ def regression_ranks(
 ) -> list[RankRange] | None:
     """Rank recovery for one repetition and alpha; None when the method has none.
 
-    * ``split_abs``: ``q = (hi - lo) / 2``; scores ``|y - f(x)|``.
+    * ``split_abs``: ``q = f(x) - lo`` and ``q = hi - f(x)`` (one range per endpoint);
+      scores ``|y - f(x)|``.
     * ``cqr`` symmetric: ``q = q_lo(x) - lo`` (and ``hi - q_hi(x)``); scores
       ``max(q_lo - y, y - q_hi)``. Asymmetric: the two sides separately, scores
-      ``q_lo - y`` and ``y - q_hi`` (two ranges are returned).
-    * ``jackknife_plus`` / ``cv_plus`` with the constant model: ``q = hi``; scores
-      ``|y|`` (pass ``pred_cal`` = zeros).
+      ``q_lo - y`` and ``y - q_hi``. Two ranges (lower, upper endpoint) are returned.
+    * ``jackknife_plus`` / ``cv_plus`` with the constant model: ``q = -lo`` and
+      ``q = hi``; scores ``|y|`` (pass ``pred_cal`` and ``pred_test`` = zeros).
     """
     iv = np.asarray(intervals, dtype=float)
     lo, hi = iv[:, 0], iv[:, 1]
@@ -109,10 +110,16 @@ def regression_ranks(
     if method in ("split_abs", "jackknife_plus", "cv_plus"):
         if pred_cal is None or pred_test is None:
             return None
+        pt = np.asarray(pred_test, dtype=float)
+        scores = np.abs(y - np.asarray(pred_cal, dtype=float))
         with np.errstate(invalid="ignore"):
-            est = (hi - lo) / 2.0
-        q, spread = _threshold(est)
-        return [_with_spread(rank_range(np.abs(y - pred_cal), q), spread)]
+            q_lo, s_lo = _threshold(pt - lo)
+            q_hi, s_hi = _threshold(hi - pt)
+        # each endpoint separately: an asymmetric off-by-one shows up on one side only
+        return [
+            _with_spread(rank_range(scores, q_lo), s_lo),
+            _with_spread(rank_range(scores, q_hi), s_hi),
+        ]
     if method == "cqr":
         if q_cal is None or q_test is None:
             return None

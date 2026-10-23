@@ -88,6 +88,7 @@ class Cell:
     direction: str = ""
     one_sided: bool = False
     rank_offsets: dict[str, int] = field(default_factory=dict)
+    rank_pairs: dict[str, int] = field(default_factory=dict)
     rank_interp: int = 0
     bracket_offsets: dict[str, int] = field(default_factory=dict)
     diff_max: float | None = None
@@ -368,6 +369,7 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
         for c in cells:
             d = asdict(c)
             d["rank_offsets"] = json.dumps(d["rank_offsets"], sort_keys=True)
+            d["rank_pairs"] = json.dumps(d["rank_pairs"], sort_keys=True)
             d["bracket_offsets"] = json.dumps(d["bracket_offsets"], sort_keys=True)
             d["warnings"] = " | ".join(d["warnings"])
             w.writerow(d)
@@ -454,7 +456,8 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
         "",
         "## Non-PASS cells (libraries)",
         "",
-        "| row | dgp | n | alpha | k | status | coverage [95% CI] | target | rank offsets | "
+        "| row | dgp | n | alpha | k | status | coverage [95% CI] | target | "
+        "rank offsets lower|upper (reps) | "
         "Holm p | reason |",
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
@@ -465,7 +468,7 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
         cov = f"{_fmt(c.coverage)} [{_fmt(c.ci_low)}, {_fmt(c.ci_high)}]" if c.coverage else ""
         lines.append(
             f"| `{c.row}` | {c.dgp} | {c.n} | {_alpha_label(c.alpha)} | {c.k} | {c.status} | "
-            f"{cov} | {c.target:.4f} | {json.dumps(c.rank_offsets) if c.rank_offsets else ''} | "
+            f"{cov} | {c.target:.4f} | {json.dumps(c.rank_pairs) if c.rank_pairs else ''} | "
             f"{'' if c.p_holm is None else f'{c.p_holm:.2g}'} | "
             f"{(c.reason + ' ' + c.message[:80]).strip()} |"
         )

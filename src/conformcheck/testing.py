@@ -160,7 +160,7 @@ def check_split_regressor(
                     "split_abs", "", iv, d.y_cal, model.predict(d.x_cal), model.predict(d.x_test)
                 )
                 if ranks:
-                    off = ranks[0].offset(k)
+                    off = max((r.offset(k) for r in ranks), key=abs)
                     offsets[off] = offsets.get(off, 0) + 1
                 nontrivial += k > nn and not diagnostics.is_trivial(iv, None)
             cells.append(_cell(nn, a, k, np.array(counts), m, offsets, nontrivial))

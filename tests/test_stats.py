@@ -193,3 +193,12 @@ def test_power_against_off_by_one() -> None:
     down = stats.mean_test(s_minus, law)
     assert up.pvalue < 1e-6 and up.direction == "above"
     assert down.pvalue < 1e-6 and down.direction == "below"
+
+
+def test_t_tests_with_zero_variance() -> None:
+    # Every repetition fully covered: above a lower bound, so no violation.
+    assert stats.lower_bound_test(np.full(20, 50), 50, 0.8).pvalue == 1.0
+    assert stats.lower_bound_test(np.full(20, 30), 50, 0.8).pvalue == 0.0
+    law = CoverageLaw("mean", 50, 0.9)
+    assert stats.mean_test(np.full(20, 45), law).pvalue == 1.0
+    assert stats.mean_test(np.full(20, 50), law).pvalue == 0.0

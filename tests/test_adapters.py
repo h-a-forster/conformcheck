@@ -65,8 +65,9 @@ def _rank(key: str, inp: RegressionInput) -> int:
     r = diagnostics.regression_ranks(
         "split_abs", "", out.intervals, inp.y_cal, m.predict(inp.x_cal), m.predict(inp.x_test)
     )
-    assert r is not None and not r[0].interpolated
-    assert r[0].k_lo == r[0].k_hi
+    assert r is not None and len(r) == 2
+    assert all(not x.interpolated and x.k_lo == x.k_hi for x in r)
+    assert r[0].k_hi == r[1].k_hi  # both endpoints use the same order statistic
     return r[0].k_hi
 
 
