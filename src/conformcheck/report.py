@@ -161,6 +161,7 @@ def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
                 n_refused=ao["n_refused"],
                 n_error=ao["n_error"],
                 rank_offsets=ao.get("rank_offsets", {}),
+                rank_pairs=ao.get("rank_pairs", {}),
                 rank_interp=ao.get("rank_interp", 0),
                 bracket_offsets=ao.get("bracket_offsets", {}),
                 diff_max=ao.get("diff_max"),
