@@ -41,9 +41,9 @@ standalone repros, plus a pytest plugin.
 ```text
 src/conformcheck/
   laws.py           exact laws: k, marginal coverage, Beta/BetaBinomial, ties, CV+ bounds   [done]
-  stats.py          exact mean test (FFT), chi-square GOF, one-sided test, Holm, BY          [M1]
-  reference.py      reference implementations + mutants (oracle self-test)                 [M2]
-  data.py           DGPs with known exchangeability; toy datasets                         [M2]
+  stats.py          exact mean test (FFT), chi-square GOF, one-sided test, Holm, BY          [done]
+  reference.py      reference implementations + mutants (oracle self-test)                 [done]
+  data.py           DGPs with known exchangeability; toy datasets                         [done]
   models.py         fixed-function sklearn models (prefit, deterministic)                  [done]
   adapters/base.py  adapter contract and input/output types                               [done]
   adapters/{mapie,crepes,puncc,torchcp}.py   library adapters                             [M3]
@@ -86,7 +86,7 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-23): **M0 done.** Scaffold, lockfile, CI, design, `laws.py` with
+Status (2026-10-23): **M0, M1, M2 done** (stats.py, reference.py, data.py with tests). M0: Scaffold, lockfile, CI, design, `laws.py` with
 reference-value tests, fixed models, the adapter contract, and the verified torchcp
 import-stub strategy. All four libraries import and calibrate in this environment.
 Scratch calls confirmed: rank used at n=19, alpha=0.1 is 18 for MAPIE, puncc and TorchCP,
@@ -94,8 +94,6 @@ and 19 for crepes `WrapRegressor`. That is DESIGN hypothesis 1, not yet a findin
 
 Next, in order (done-checks in DESIGN section 9):
 
-1. M1 `stats.py`
-2. M2 `reference.py` and `data.py`
 3. M3 adapters and `diagnostics.py`
 4. M4 `study.py`, `runner.py` and CLI `plan`/`run`
 5. M5 `report.py`

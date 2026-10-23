@@ -100,3 +100,23 @@ class FixedClassifier(ClassifierMixin, BaseEstimator):
 
     def predict(self, X: ArrayLike) -> NDArray[np.int64]:
         return self.classes_[np.argmax(self.predict_proba(X), axis=1)]
+
+
+class OffsetRegressor(RegressorMixin, BaseEstimator):
+    """``predict(x) = base.predict(x) + offset`` for an already fitted ``base``.
+
+    Used for fixed quantile models on the toy datasets (the base fit plus a training
+    residual quantile). ``fit`` is a no-op.
+    """
+
+    def __init__(self, base: object = None, offset: float = 0.0) -> None:
+        self.base = base
+        self.offset = offset
+        self.n_features_in_ = getattr(base, "n_features_in_", None)
+        self.is_fitted_ = True
+
+    def fit(self, X: ArrayLike, y: ArrayLike | None = None, **_: object) -> OffsetRegressor:
+        return self
+
+    def predict(self, X: ArrayLike) -> NDArray[np.float64]:
+        return np.asarray(self.base.predict(X), dtype=float) + self.offset  # type: ignore[union-attr]
