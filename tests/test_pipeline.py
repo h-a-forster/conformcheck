@@ -1,0 +1,204 @@
+"""Study, runner, report and repro pipeline (milestones M4 to M6), on reference rows only.
+
+The reference rows need no optional library, so these tests run everywhere and fast.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from fractions import Fraction
+from pathlib import Path
+
+import pytest
+
+from conformcheck import cli, study
+from conformcheck.report import write_report
+from conformcheck.repro import write_repros
+from conformcheck.runner import FingerprintMismatch, load_done, run_study
+
+TOML = """
+name = "tiny"
+seed = 3
+reps = 60
+test_points = 60
+workers = 1
+fwer = 0.05
+fdr = 0.05
+alphas = ["0.1", "0.2"]
+edge_alphas = true
+
+[grids.split]
+n = [9, 19]
+dgps = ["reg_gauss", "cls_gauss"]
+
+[grids.cv_plus]
+n = [20]
+n_folds = [5]
+dgps = ["reg_constant"]
+
+[controls]
+reference = true
+mutants = ["k_plus_1", "k_minus_1"]
+"""
+
+
+@pytest.fixture
+def tiny(tmp_path: Path) -> study.Study:
+    p = tmp_path / "tiny.toml"
+    p.write_text(TOML, encoding="utf-8")
+    return study.load_study(p)
+
+
+def _strip(rec: dict) -> dict:
+    return {k: v for k, v in rec.items() if k != "elapsed_s"}
+
+
+def test_load_builtin_studies() -> None:
+    for name in ("smoke", "default", "full"):
+        s = study.load_study(name)
+        assert s.workers <= 4 and s.reps >= 20
+    assert study.load_study("default").reps == 200
+    with pytest.raises(FileNotFoundError):
+        study.load_study("nope")
+
+
+def test_grid_alphas_and_units(tiny: study.Study) -> None:
+    g = tiny.grids[0]
+    assert study.grid_alphas(tiny, g, 19) == (
+        Fraction(1, 5),
+        Fraction(1, 10),
+        Fraction(1, 20),
+        Fraction(9, 200),
+    )
+    units = study.enumerate_units(tiny, libraries={"reference"})
+    keys = {u.adapter for u in units}
+    assert "reference/split_abs/k_plus_1" in keys
+    assert "reference/split_abs/no_correction_linear" not in keys
+    assert len({u.uid(tiny) for u in units}) == len(units)
+
+
+def test_cell_law_mapping() -> None:
+    kw = dict(library="x", m=100)
+    assert (
+        study.cell_law(
+            method="split_abs", variant="d", dgp="reg_gauss", n=5, alpha=Fraction(1, 10), **kw
+        ).kind
+        == "trivial"
+    )
+    cl = study.cell_law(
+        method="cqr", variant="asymmetric", dgp="reg_gauss", n=19, alpha=Fraction(1, 10), **kw
+    )
+    assert cl.kind == "mean" and cl.target == pytest.approx(0.9) and cl.k == 19
+    cl = study.cell_law(
+        method="lac", variant="smoothed", dgp="cls_gauss", n=5, alpha=Fraction(1, 10), **kw
+    )
+    assert cl.kind == "mean" and cl.target == pytest.approx(0.9)
+    cl = study.cell_law(
+        method="cv_plus",
+        variant="K=10",
+        dgp="reg_gauss",
+        n=100,
+        alpha=Fraction(1, 10),
+        n_folds=10,
+        **kw,
+    )
+    assert cl.kind == "lower" and cl.target == pytest.approx(0.8 - 9 / 110)
+    cl = study.cell_law(
+        method="class_conditional",
+        variant="default",
+        dgp="cls_gauss",
+        n=19,
+        alpha=Fraction(1, 10),
+        **kw,
+    )
+    assert cl.kind == "exact" and cl.law.m == 100 and cl.target == pytest.approx(0.9)
+    cl = study.cell_law(
+        method="split_abs", variant="d", dgp="reg_tied", n=19, alpha=Fraction(1, 10), **kw
+    )
+    assert cl.kind == "exact" and cl.target > 0.9
+    cl = study.cell_law(
+        method="aps", variant="rand=False", dgp="cls_gauss", n=19, alpha=Fraction(1, 10), **kw
+    )
+    assert cl.one_sided
+
+
+def test_run_resume_is_identical_and_report(tiny: study.Study, tmp_path: Path) -> None:
+    libs = {"reference"}
+    full = tmp_path / "full"
+    run_study(tiny, full, workers=1, libraries=libs, echo=None)
+    part = tmp_path / "part"
+    res = run_study(tiny, part, workers=1, libraries=libs, max_units=5, echo=None)
+    assert res["done"] == 5
+    # simulate a crash mid-write: a truncated last line must be ignored on resume
+    with (part / "units.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write('{"uid": "trunc')
+    res = run_study(tiny, part, workers=1, libraries=libs, echo=None)
+    assert res["done"] == res["total"]
+    a = {k: _strip(v) for k, v in load_done(full / "units.jsonl").items()}
+    b = {k: _strip(v) for k, v in load_done(part / "units.jsonl").items()}
+    assert a == b
+    assert "done=" in (part / "progress.log").read_text(encoding="utf-8")
+
+    payload = write_report(full)
+    rows = {r["row"]: r for r in payload["rows"]}
+    assert rows["reference/split_abs/default"]["small_n_status"] == "PASS"
+    assert rows["reference/lac/default"]["small_n_status"] == "PASS"
+    assert rows["reference/cv_plus/K=5"]["small_n_status"] == "PASS"
+    assert rows["reference/split_abs/k_plus_1"]["small_n_status"] == "CONSERVATIVE"
+    assert rows["reference/split_abs/k_minus_1"]["small_n_status"] == "FAIL"
+    assert rows["reference/lac/k_minus_1"]["small_n_status"] == "FAIL"
+    assert payload["controls"]["size"]["reference_holm_rejections"] == 0
+    for f in ("cells.csv", "matrix.json", "matrix.md", "summary.md"):
+        assert (full / "report" / f).stat().st_size > 0
+    # statuses are reproducible from units.jsonl alone
+    again = write_report(full, tmp_path / "again")
+    assert again["rows"] == payload["rows"]
+
+    # M6: repros run standalone; a mutant reproduces (exit 1)
+    repros = write_repros(full, verify=True)
+    by_row = {(r.row, r.kind): r for r in repros}
+    r = by_row[("reference/split_abs/k_plus_1", "rank")]
+    assert r.exit_code == 1, r.path.with_suffix(".out.txt").read_text(encoding="utf-8")
+    assert "conformcheck" not in r.path.read_text(encoding="utf-8").split('"""', 2)[2]
+
+
+def test_reference_repro_exits_zero(tiny: study.Study, tmp_path: Path) -> None:
+    from conformcheck.repro import MODELS, PRELUDE, RANK_HARNESS, REFERENCE_SNIPPET
+
+    src = (
+        PRELUDE.format(lib="numpy")
+        + MODELS
+        + REFERENCE_SNIPPET.format(mutant="default")
+        + RANK_HARNESS.format(n=19, alpha="1/10")
+    )
+    p = tmp_path / "ref.py"
+    p.write_text(src, encoding="utf-8")
+    proc = subprocess.run([sys.executable, str(p)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "expected 18" in proc.stdout
+
+
+def test_fingerprint_guard(tiny: study.Study, tmp_path: Path) -> None:
+    out = tmp_path / "run"
+    run_study(tiny, out, workers=1, libraries={"reference"}, max_units=1, echo=None)
+    other = study.Study(**{**tiny.__dict__, "reps": 61})
+    with pytest.raises(FingerprintMismatch):
+        run_study(other, out, workers=1, libraries={"reference"}, max_units=1, echo=None)
+    run_study(other, out, workers=1, libraries={"reference"}, max_units=1, force=True, echo=None)
+
+
+def test_worker_cap(tiny: study.Study, tmp_path: Path) -> None:
+    out = tmp_path / "run"
+    run_study(tiny, out, workers=64, libraries={"reference"}, max_units=0, echo=None)
+    assert json.loads((out / "run.json").read_text())["workers"] == 4
+    assert study.Study(**{**tiny.__dict__}).workers <= 4
+
+
+def test_cli_plan_and_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["plan", "--study", "smoke", "--no-probe"]) == 0
+    assert "units" in capsys.readouterr().out
+    assert cli.main(["plan", "--study", "missing-study", "--no-probe"]) == 2
+    assert cli.main(["report", str(tmp_path)]) == 2
+    assert cli.main(["repro", str(tmp_path)]) == 2

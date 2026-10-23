@@ -99,6 +99,10 @@ markers = [
     "slow: Monte Carlo tests that take more than a few seconds",
     "adapter: tests that need a library under test installed",
 ]
+filterwarnings = [
+    # Third-party docstrings with invalid escapes (torchcp, puncc) under Python 3.12+.
+    "ignore::SyntaxWarning",
+]
 
 [tool.ruff]
 line-length = 100

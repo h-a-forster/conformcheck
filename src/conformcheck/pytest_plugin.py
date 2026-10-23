@@ -2,9 +2,10 @@
 
 It must stay cheap to import: it is loaded by every pytest run in an environment where
 conformcheck is installed. It adds command-line options that scale the Monte Carlo
-size of conformance checks and a ``conformcheck_settings`` fixture that
-:mod:`conformcheck.testing` helpers read. The checking fixture itself arrives in
-milestone M7 (docs/DESIGN.md, section 8.4).
+size of conformance checks and a ``conformcheck_settings`` fixture. The
+:mod:`conformcheck.testing` helpers pick up ``--conformcheck-reps`` and
+``--conformcheck-seed`` automatically when called without explicit values
+(docs/DESIGN.md, section 8.4).
 """
 
 from __future__ import annotations
@@ -40,15 +41,39 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+_ACTIVE: ConformcheckSettings | None = None
+
+
+def current_settings() -> ConformcheckSettings | None:
+    """Settings of the running pytest session, or None outside pytest."""
+    return _ACTIVE
+
+
+def _from_config(config: pytest.Config) -> ConformcheckSettings:
+    reps = config.getoption("--conformcheck-reps", default=None)
+    seed = config.getoption("--conformcheck-seed", default=None)
+    d = ConformcheckSettings()
+    return ConformcheckSettings(
+        reps=d.reps if reps is None else int(reps),
+        test_points=d.test_points,
+        seed=d.seed if seed is None else int(seed),
+        fwer=d.fwer,
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    global _ACTIVE
+    reps = config.getoption("--conformcheck-reps", default=None)
+    seed = config.getoption("--conformcheck-seed", default=None)
+    _ACTIVE = _from_config(config) if (reps is not None or seed is not None) else None
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    global _ACTIVE
+    _ACTIVE = None
+
+
 @pytest.fixture
 def conformcheck_settings(request: pytest.FixtureRequest) -> ConformcheckSettings:
     """Settings for conformance checks, taken from the command line when given."""
-    reps = request.config.getoption("--conformcheck-reps")
-    seed = request.config.getoption("--conformcheck-seed")
-    defaults = ConformcheckSettings()
-    return ConformcheckSettings(
-        reps=defaults.reps if reps is None else reps,
-        test_points=defaults.test_points,
-        seed=defaults.seed if seed is None else seed,
-        fwer=defaults.fwer,
-    )
+    return _from_config(request.config)

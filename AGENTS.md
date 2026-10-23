@@ -46,16 +46,17 @@ src/conformcheck/
   data.py           DGPs with known exchangeability; toy datasets                         [done]
   models.py         fixed-function sklearn models (prefit, deterministic)                  [done]
   adapters/base.py  adapter contract and input/output types                               [done]
-  adapters/{mapie,crepes,puncc,torchcp}.py   library adapters                             [M3]
+  adapters/{mapie,crepes,puncc,torchcp,reference}.py  library adapters + controls          [done]
   adapters/_import_stubs.py  placeholder modules for torchcp's unused heavy deps          [done]
-  diagnostics.py    rank recovery, bracketing, trivial-set check, differential check       [M3]
-  study.py          study TOML -> units                                                    [M4]
-  runner.py         checkpointed parallel runner                                           [M4]
-  report.py         conformance matrix, summary                                            [M5]
-  repro.py          standalone repro scripts + verification                               [M6]
-  testing.py        public check_* helpers for library authors                            [M7]
-  pytest_plugin.py  pytest11 plugin: options + conformcheck_settings fixture               [skeleton]
-  cli.py            conformcheck libraries | plan | run | report | repro                   [skeleton]
+  diagnostics.py    rank recovery, bracketing, trivial-set check, differential check       [done]
+  study.py          study TOML -> units; cell -> law mapping                              [done]
+  runner.py         checkpointed parallel runner                                           [done]
+  plan.py           unit count + time estimate by probing                                 [done]
+  report.py         conformance matrix, summary                                            [done]
+  repro.py          standalone repro scripts + verification                               [done]
+  testing.py        public check_* helpers for library authors                            [done]
+  pytest_plugin.py  pytest11 plugin: options + conformcheck_settings fixture               [done]
+  cli.py            conformcheck libraries | plan | run | report | repro                   [done]
   studies/          smoke.toml, default.toml, full.toml
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 tests/              test_laws.py (reference values), test_package.py, test_import_stubs.py
@@ -86,20 +87,12 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-23): **M0, M1, M2 done** (stats.py, reference.py, data.py with tests). M0: Scaffold, lockfile, CI, design, `laws.py` with
-reference-value tests, fixed models, the adapter contract, and the verified torchcp
-import-stub strategy. All four libraries import and calibrate in this environment.
-Scratch calls confirmed: rank used at n=19, alpha=0.1 is 18 for MAPIE, puncc and TorchCP,
-and 19 for crepes `WrapRegressor`. That is DESIGN hypothesis 1, not yet a finding.
+Status (2026-10-23): **M0 to M7 done.** All modules implemented and tested (stats,
+reference + mutants, data, adapters for the four libraries, diagnostics, study, runner,
+plan, report, repro, testing API, plugin, CLI). RAPS was cut from v0.1 (DESIGN section
+2 allowed this); the matrix has no RAPS rows. The default study is running into
+`runs/default` (resumable: rerun the same command).
 
-Next, in order (done-checks in DESIGN section 9):
-
-3. M3 adapters and `diagnostics.py`
-4. M4 `study.py`, `runner.py` and CLI `plan`/`run`
-5. M5 `report.py`
-6. M6 `repro.py`
-7. M7 `testing.py` and the plugin fixture
-8. M8 default study, `REPORT.md`, README headline
-
-Open questions: none blocking. RAPS (M8) may be cut for time; if so, say so in the
-matrix and REPORT.md.
+Next: M8 (finish the default study, `conformcheck report runs/default`,
+`conformcheck repro runs/default --verify`, puncc numpy<2 re-check, copy results to
+`docs/results/default/`, write REPORT.md, README headline).
