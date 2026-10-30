@@ -10,8 +10,9 @@
 
 `RAPSConformityScore` documents `size_raps` (default 0.2) as the share of the
 conformalization data used to choose lambda and k_reg. `SplitConformalClassifier`
-ignores it: `_MapieClassifier.fit` calls `cs_estimator.set_external_attributes(...)`
-without `size_raps` (`mapie/classification.py`, around line 898), and
+ignores it: `_MapieClassifier._check_fit_parameter` (called by `fit`) calls
+`cs_estimator.set_external_attributes(...)` without `size_raps`
+(`mapie/classification.py`, around line 898), and
 `RAPSConformityScore.set_external_attributes` then sets `self.size_raps = None` (its
 default argument). `split_data` passes `test_size=None` to `StratifiedShuffleSplit`,
 which uses scikit-learn's default share of 0.1. The user's score object is modified too:

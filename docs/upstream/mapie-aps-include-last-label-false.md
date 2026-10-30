@@ -12,8 +12,8 @@ randomized but the prediction rule is not
 With `SplitConformalClassifier(conformity_score="aps")` and
 `predict_set(..., conformity_score_params={"include_last_label": False})`, the coverage
 can fall well below `confidence_level`. With an ordinary fitted `LogisticRegression` on
-four Gaussian classes, a 0.9 target gives 0.783 coverage, at every calibration size
-tried. The docstring of `include_last_label` says that `True` and `False` "may result in
+four Gaussian classes and 1000 calibration points, a 0.9 target gives 0.783 coverage.
+The docstring of `include_last_label` says that `True` and `False` "may result in
 a coverage higher than `1 - alpha`", so users would expect the opposite.
 
 `include_last_label=True` is conservative, as documented, and `"randomized"` matches the
