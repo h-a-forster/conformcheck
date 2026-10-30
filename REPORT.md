@@ -183,7 +183,9 @@ by 1/(n+1), about 0.001 at n = 999, while the 95% interval half-width there is a
 
 The coverage figures below are the mean over 200 draws × 500 test points (fewer test
 points on the toy datasets), with a 95% t interval from the empirical spread of the 200
-covered counts. Holm p-values are adjusted over all 4348 statistical cells.
+covered counts. Holm p-values are adjusted over all 4348 statistical cells, except in
+the MAPIE 1.5.0 vs 1.6.0 comparison at the end of this section, which uses its own runs'
+family.
 
 Re-check on 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases, and
 the repros of F1, F9 and F10 give the same output as in round 2. F1 and F9 also
@@ -573,9 +575,13 @@ pinned from `uv.lock` that differ only in the mapie pin (`scripts/mapie_versions
 865 units each, 0 errors). The fresh 1.6.0 run reproduced the committed round-2 records:
 324 of 324 MAPIE units have identical raw results. (Of the 541 reference-control units,
 10 differ, all in the rank diagnostics of deliberately broken `split_abs` controls; their
-covered counts and statuses are unchanged.) Under 1.5.0, 161 of the 324 units
-differ, 156 cells change status, and **13 of 13 MAPIE rows are flagged at n <= 100,
-against 9 of 13 under 1.6.0** (results in `docs/results/mapie-versions/`):
+covered counts and statuses are unchanged.) Each version run contains only the MAPIE
+and reference rows, so its Holm family, and "Holm-rejected" below, is that run's 2590
+statistical cells (788 MAPIE, 1802 reference and mutant controls), not the 4348 of the
+full study. With that smaller family the 1.6.0 MAPIE statuses equal the committed
+full-family ones (0 cells change status). Under 1.5.0, 161 of the 324 units differ, 156
+cells change status, and **13 of 13 MAPIE rows are flagged at n <= 100, against 9 of 13
+under 1.6.0** (results in `docs/results/mapie-versions/`):
 
 - **Finite intervals where k > n (25 + 43 cells, FAIL under 1.5.0).** CV+ (K = 5, 10)
   and jackknife+ with the constant model, and the split regressor with

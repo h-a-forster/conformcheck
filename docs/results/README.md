@@ -32,7 +32,7 @@ The default study's MAPIE rows (and the reference rows) under MAPIE 1.5.0 and 1.
 
 | File | Contents |
 |---|---|
-| `compare.md` | 1.5.0 vs 1.6.0: raw results per unit, status counts per row, every changed cell |
+| `compare.md` | 1.5.0 vs 1.6.0: raw results per unit, status counts per row, every changed cell (statuses use each run's Holm family of 2590 MAPIE and reference-control cells, not the full study's 4348) |
 | `reproduce-committed.md` | The fresh 1.6.0 run against `default/` (identical raw results) |
 | `1.5.0/`, `1.6.0/` | `run.json` and `summary.md` of each run |
 | `1.5.0/units.jsonl.gz` | The 1.5.0 per-unit records (the 1.6.0 MAPIE records equal those in `default/`) |
