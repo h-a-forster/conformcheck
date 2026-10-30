@@ -101,14 +101,12 @@ holds round 2.
   F11 (puncc APS/RAPS set size capped at the number of test points per call), found in
   code review and outside the study grid, with a manual repro. Issue texts for F1, F9,
   F10 and F11 are in `docs/upstream/` (not filed).
-- MAPIE 1.5.0 vs 1.6.0 study: prepared, not yet run. 1.6.0 changed the classification
-  and CQR order-statistic selection and the regression quantile at `k > n`.
-  `scripts/mapie_versions.sh` builds two pinned venvs in `tmp/envs/` from `uv.lock`
-  (only the mapie pin differs), runs the default study's MAPIE and reference rows in
-  each, then `scripts/compare_runs.py`; outputs go to `runs/mapie-versions-default/`
-  (gitignored). Estimated 45 min on an idle machine, up to about 75 min under load
-  (4 workers). The smoke study already shows 1.5.0 returning finite intervals where
-  `k > n`.
+- MAPIE 1.5.0 vs 1.6.0 study: run 2026-10-30 (`scripts/mapie_versions.sh`, 25 + 16 min,
+  4 workers; raw runs in `runs/mapie-versions-default/`, gitignored). Small outputs in
+  `docs/results/mapie-versions/`, write-up at the end of REPORT section 4. 1.6.0
+  reproduced the committed records (324/324 identical); under 1.5.0 13/13 MAPIE rows are
+  flagged at n <= 100 (9/13 under 1.6.0): finite intervals where `k > n` (68 cells) and
+  one order statistic too many for LAC, CQR, randomized APS/RAPS (87 cells).
 
 - Round 2 run: `runs/default-r2` (gitignored), fingerprint `cbfed0fa569dc01f`. It was
   seeded with the 779 unaffected v0.1 units (unit ids depend only on unit, R, m, seed),
@@ -181,8 +179,6 @@ Open items (not done):
 - CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled).
 - puncc PASS cells were not re-checked under `numpy<2` (only its findings were).
 - First CI run (CI now also runs on pushes to `main`).
-- Run the MAPIE 1.5.0 vs 1.6.0 study, write it up (REPORT section or
-  `docs/results/mapie-versions/`) and commit the small outputs.
 - Issue texts for F2-F8; filing any of them is the owner's decision.
 - A batch-size invariance check (one test point vs a batch) would have caught F11; the
   runner always predicts 500 points per call.

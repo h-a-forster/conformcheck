@@ -29,6 +29,11 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
   capped at the number of test points per call; found in code review, outside the study
   grid). F1 (MAPIE APS `include_last_label=False`) now also under-covers with the
   informative classifier.
+- MAPIE 1.5.0 vs 1.6.0: under 1.5.0 all 13 MAPIE rows are flagged at n <= 100 (9 under
+  1.6.0). 1.5.0 returns finite intervals where `k > n` (CV+, jackknife+, split with
+  `allow_infinite_bounds=True`; coverage down to 0.828 against 1) and uses one order
+  statistic too many for LAC, CQR and randomized APS and RAPS (87 cells). The 1.6.0
+  run reproduced the round-2 records exactly.
 
 Details: [REPORT.md](../REPORT.md). Issue texts for F1, F9, F10 and F11, re-checked on
 2026-10-30 against MAPIE 1.6.0 and puncc 0.9.3 (still the latest releases), are in

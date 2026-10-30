@@ -34,6 +34,12 @@ documented conservatism of `include_last_label=True`, refusals of a level where 
 set exists, and crashes. The reference rows produced 0 false alarms. Details, intervals
 and limitations are in [REPORT.md](REPORT.md).
 
+Under MAPIE 1.5.0 all 13 MAPIE rows are flagged at n <= 100 (9 under 1.6.0): CV+,
+jackknife+ and the split regressor with `allow_infinite_bounds=True` return finite,
+under-covering intervals where `k > n` (down to 0.828 against 1), and LAC, CQR and
+randomized APS and RAPS use one order statistic too many in 87 cells. The fresh 1.6.0
+run reproduced the committed records exactly (REPORT section 4).
+
 | Finding | Kind | Size |
 |---|---|---|
 | MAPIE APS `include_last_label=False` | coverage set by the model, not the law | at a 0.90 target: about 0.55 and 0.79 on two synthetic models (under), about 0.97 on digits (over), every n |

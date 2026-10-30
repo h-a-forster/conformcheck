@@ -24,3 +24,15 @@ added the rest (REPORT section 1).
 
 The repro scripts exit 1 while the finding reproduces, 0 when it no longer does, and 2
 on an unexpected crash.
+
+## mapie-versions/
+
+The default study's MAPIE rows (and the reference rows) under MAPIE 1.5.0 and 1.6.0, run
+2026-10-30 by `scripts/mapie_versions.sh` (REPORT section 4).
+
+| File | Contents |
+|---|---|
+| `compare.md` | 1.5.0 vs 1.6.0: raw results per unit, status counts per row, every changed cell |
+| `reproduce-committed.md` | The fresh 1.6.0 run against `default/` (identical raw results) |
+| `1.5.0/`, `1.6.0/` | `run.json` and `summary.md` of each run |
+| `1.5.0/units.jsonl.gz` | The 1.5.0 per-unit records (the 1.6.0 MAPIE records equal those in `default/`) |

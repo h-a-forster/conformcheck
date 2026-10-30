@@ -30,6 +30,7 @@ classifier), fixes to the report pipeline, and upstream issue texts.
   cell (statuses), for example one library at two versions.
 - `scripts/mapie_versions.sh`: the default study's MAPIE rows under MAPIE 1.5.0 and
   1.6.0, each in a venv pinned from `uv.lock`, followed by `compare_runs.py` (resumable).
+- MAPIE 1.5.0 vs 1.6.0 results (`docs/results/mapie-versions/`) and a REPORT.md section.
 
 ### Fixed
 

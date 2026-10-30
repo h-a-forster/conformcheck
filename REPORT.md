@@ -188,7 +188,8 @@ covered counts. Holm p-values are adjusted over all 4348 statistical cells.
 Re-check on 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases, and
 the repros of F1, F9 and F10 give the same output as in round 2. F1 and F9 also
 reproduce on MAPIE 1.5.0 (`docs/upstream/` has the issue texts). F11 was found in code
-review after round 2.
+review after round 2. How MAPIE 1.5.0 differs from 1.6.0 across the whole grid is at the
+end of this section.
 
 ### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
 
@@ -560,6 +561,33 @@ of classes. The repro `manual__puncc__aps_raps__set_size_capped_by_batch.py` use
 the public `deel.puncc.classification` API; it reproduces under numpy 2.5.4 and under
 `numpy<2` (numpy 1.26.4, Python 3.12).
 
+### MAPIE 1.5.0 vs 1.6.0 (run 2026-10-30)
+
+The default study's 13 MAPIE rows ran again under MAPIE 1.5.0 and 1.6.0, in two venvs
+pinned from `uv.lock` that differ only in the mapie pin (`scripts/mapie_versions.sh`;
+865 units each, 0 errors). The fresh 1.6.0 run reproduced the committed round-2 records:
+324 of 324 MAPIE units have identical raw results. Under 1.5.0, 161 of the 324 units
+differ, 156 cells change status, and **13 of 13 MAPIE rows are flagged at n <= 100,
+against 9 of 13 under 1.6.0** (results in `docs/results/mapie-versions/`):
+
+- **Finite intervals where k > n (25 + 43 cells, FAIL under 1.5.0).** CV+ (K = 5, 10)
+  and jackknife+ with the constant model, and the split regressor with
+  `allow_infinite_bounds=True`, returned finite intervals where only (-inf, inf) is
+  valid. The lowest coverage was 0.828 against 1 (split, `reg_gauss`, n = 5,
+  alpha = 0.1); jackknife+ covered 0.902 at n = 9, alpha = 0.05. MAPIE 1.6.0 returns
+  infinite bounds for CV+ and jackknife+ (PASS) and raises for the split regressor
+  (REFUSED, F4). These four rows are the ones 1.6.0 no longer flags.
+- **One order statistic too high (87 cells, CONSERVATIVE under 1.5.0).** LAC (26 cells,
+  bracket +1), symmetric and asymmetric CQR (26 and 17, rank +1 in 199-200 of 200 draws),
+  and randomized APS and RAPS (14 and 4, Holm-rejected) over-covered; all PASS under
+  1.6.0. The largest excess was 0.909 against 0.800 (asymmetric CQR, `diabetes`, n = 19,
+  alpha = 0.2), and LAC covered 0.894 and 0.905 against 0.800 at n = 9. The study does
+  not record interval widths; a rank +1 means every interval used the next larger score,
+  so 1.5.0's sets and intervals were one order statistic wider.
+- **Unchanged:** F1 (one cell is LAW_MISMATCH under 1.5.0, coverage 0.774 against
+  0.800, and FAIL under 1.6.0 at 0.750), F4, F5, F7 and F9, and the documented
+  conservatism of `include_last_label=True`.
+
 ## 5. Pre-registered hypotheses
 
 | # | Hypothesis | Verdict |
@@ -712,6 +740,9 @@ uv run conformcheck report runs/default
 uv run conformcheck repro runs/default --verify
 uv run python scripts/raps_neff.py runs/default --out runs/default/raps_neff.md
 ```
+
+The MAPIE 1.5.0 vs 1.6.0 comparison (about 45 minutes on 4 workers; resumable):
+`bash scripts/mapie_versions.sh`, which writes `runs/mapie-versions-default/`.
 
 To rebuild the report from the committed per-unit records without re-running, gunzip
 `docs/results/default/units.jsonl.gz` into `runs/default/units.jsonl`, copy
