@@ -1,0 +1,102 @@
+{
+  "elapsed_s_last_session": 195.5,
+  "ended": "2026-10-30T23:27:16",
+  "fingerprint": "6d65bfbb8486cd53",
+  "first_started": "2026-10-30T23:24:00",
+  "missing_libraries": [],
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "AMD64 Family 23 Model 104 Stepping 1, AuthenticAMD",
+  "source": "builtin:batch",
+  "started": "2026-10-30T23:24:00",
+  "study": {
+    "alphas": [
+      "0.1",
+      "0.2"
+    ],
+    "batch_sizes": [
+      1,
+      3,
+      7
+    ],
+    "edge_alphas": true,
+    "fdr": 0.05,
+    "fwer": 0.05,
+    "grids": [
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_gauss",
+          "cls_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          9,
+          100
+        ],
+        "n_folds": [],
+        "name": "split"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          10
+        ],
+        "n_folds": [],
+        "name": "jackknife_plus"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "reg_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          20
+        ],
+        "n_folds": [
+          5,
+          10
+        ],
+        "name": "cv_plus"
+      },
+      {
+        "alphas": null,
+        "dgps": [
+          "cls_gauss"
+        ],
+        "edge_alphas": null,
+        "n": [
+          9
+        ],
+        "n_folds": [],
+        "name": "class_conditional"
+      }
+    ],
+    "mutants": [],
+    "name": "batch",
+    "reference": true,
+    "reps": 20,
+    "seed": 20261030,
+    "test_points": 20,
+    "workers": 4
+  },
+  "units_skipped_missing": 0,
+  "units_total": 86,
+  "versions": {
+    "conformcheck": "0.2.0",
+    "crepes": "0.9.1",
+    "mapie": "1.6.0",
+    "numpy": "2.5.4",
+    "puncc": "0.9.3",
+    "python": "3.13.1",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "torch": "2.14.1+cpu",
+    "torchcp": "1.2.1"
+  },
+  "workers": 4
+}

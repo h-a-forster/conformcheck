@@ -168,6 +168,15 @@ equals `-q^+_alpha{-v_i}`. With `mu_{-i} = 0` the interval is `[-R_(k), R_(k)]`.
    methods. Reports the maximum endpoint difference or set disagreement rate. A
    difference is information, not a verdict, because conventions differ; the laws
    decide.
+5. **Batch-size invariance** (`batch.py`, added 2026-10-30, opt-in with the study key
+   `batch_sizes`). Each repetition's test points are predicted again in consecutive
+   chunks of each size (size 1 is one point at a time) and in one shuffled call. A
+   deterministic method must return the full batch's sets exactly and its intervals
+   within the rank tolerance; any difference, or a status that changes, is FAIL. A
+   randomized method gets a new seed per chunk, and a paired t-test per mode on the
+   per-repetition differences in mean set size and coverage (Bonferroni within a cell,
+   Holm across cells, a family of its own) decides. Motivated by F11, which a study that
+   always predicts 500 points per call cannot see.
 
 ### 3.4 Statistical tests (`stats.py`)
 

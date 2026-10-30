@@ -49,6 +49,7 @@ src/conformcheck/
   adapters/{mapie,crepes,puncc,torchcp,reference}.py  library adapters + controls          [done]
   adapters/_import_stubs.py  placeholder modules for torchcp's unused heavy deps          [done]
   diagnostics.py    rank recovery, bracketing, trivial-set check, differential check       [done]
+  batch.py          batch-size invariance (chunks, one at a time, shuffled; opt-in)       [done]
   study.py          study TOML -> units; cell -> law mapping                              [done]
   runner.py         checkpointed parallel runner                                           [done]
   plan.py           unit count + time estimate by probing                                 [done]
@@ -57,7 +58,7 @@ src/conformcheck/
   testing.py        public check_* helpers for library authors                            [done]
   pytest_plugin.py  pytest11 plugin: options + conformcheck_settings fixture               [done]
   cli.py            conformcheck libraries | plan | run | report | repro                   [done]
-  studies/          smoke.toml, default.toml, full.toml
+  studies/          smoke.toml, default.toml, full.toml, batch.toml (batch-size check)
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
 scripts/compare_runs.py  two runs unit by unit and cell by cell (e.g. a library at two versions)
@@ -102,6 +103,15 @@ holds round 2.
   code review and outside the study grid, with a manual repro; already reported upstream
   in puncc PR #97 (open). Issue texts for F1, F9 and F10 and a supporting comment for
   puncc #97 are in `docs/upstream/` (not filed).
+- Batch-size invariance check (2026-10-30): `batch_sizes` in a study TOML turns it on
+  (`batch.py`; runner records a per-mode `batch` dict per alpha; report adds a FAIL, a
+  `matrix.md` section and `batch*` csv columns; a separate Holm family for randomized
+  rows). Without the key, fingerprints, unit ids and report columns are unchanged (a
+  test checks the committed default fingerprint). The `batch` study (86 units, 3.3 min,
+  4 workers; `docs/results/batch/`) reproduces F11 in all 20 puncc APS/RAPS cells and
+  found candidate F12: puncc CQR raises for one test point (`DualPredictor` squeezes
+  `(1, 2)` to `(2,)`); manual repro reproduces under numpy 2.5.4 and 1.26.4. Everything
+  else is invariant where it ran.
 - MAPIE 1.5.0 vs 1.6.0 study: run 2026-10-30 (`scripts/mapie_versions.sh`, 25 + 16 min,
   4 workers; raw runs in `runs/mapie-versions-default/`, gitignored). Small outputs in
   `docs/results/mapie-versions/`, write-up at the end of REPORT section 4. 1.6.0
@@ -171,7 +181,7 @@ Notes for whoever continues:
   estimate.
 - `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
   message. An unexpected crash exits 2, never 1. Hand-written repros are prefixed
-  `manual__`.
+  `manual__`. Cells flagged only by the batch check get no generated repro.
 
 Open items (not done):
 
@@ -181,5 +191,6 @@ Open items (not done):
 - puncc PASS cells were not re-checked under `numpy<2` (only its findings were).
 - First CI run (CI now also runs on pushes to `main`).
 - Issue texts for F2-F8; filing any of them is the owner's decision.
-- A batch-size invariance check (one test point vs a batch) would have caught F11; the
-  runner always predicts 500 points per call.
+- F12 (candidate): no upstream issue text yet; filing is the owner's decision.
+- The batch-size check has not run on the default grid (other DGPs, n, toy data), and
+  `testing.check_*` does not offer it to library authors yet.

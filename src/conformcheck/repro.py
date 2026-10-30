@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from conformcheck.report import Cell, adjust, build_cells
+from conformcheck.report import Cell, adjust, build_cells, worst
 from conformcheck.runner import study_records
 
 PRELUDE = '''\
@@ -614,7 +614,8 @@ def clusters(cells: list[Cell], include_controls: bool = True) -> list[tuple[Cel
 
     best: dict[tuple[str, str, str], Cell] = {}
     for c in cells:
-        if c.status in ("PASS", "REFUSED"):
+        # batch-size findings have no generated repro (REPORT.md, F11 has a manual one)
+        if worst([c.det_status, c.stat_status]) in ("PASS", "REFUSED"):
             continue
         if c.is_control and not include_controls:
             continue

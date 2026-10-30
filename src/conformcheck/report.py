@@ -28,7 +28,7 @@ from typing import Any
 import numpy as np
 from scipy import stats as sps
 
-from conformcheck import laws, stats
+from conformcheck import batch, laws, stats
 from conformcheck.runner import study_records
 from conformcheck.study import cell_law
 
@@ -112,6 +112,12 @@ class Cell:
     reason: str = ""
     message: str = ""
     warnings: list[str] = field(default_factory=list)
+    # batch-size invariance (conformcheck.batch); empty unless the study set batch_sizes
+    batch: dict[str, Any] = field(default_factory=dict)
+    batch_p: float | None = None
+    batch_p_holm: float | None = None
+    batch_status: str = "PASS"
+    batch_reason: str = ""
 
     @property
     def is_control(self) -> bool:
@@ -223,7 +229,15 @@ def build_cells(records: list[dict[str, Any]]) -> list[Cell]:
                 nontrivial=ao.get("nontrivial", 0),
                 message=ao.get("message", ""),
                 warnings=ao.get("warnings", []),
+                batch=ao.get("batch", {}),
             )
+            if c.batch:
+                randomized = c.variant in batch.RANDOMIZED_VARIANTS
+                c.batch_reason = batch.deterministic_reason(c.batch, randomized)
+                if c.batch_reason:
+                    c.batch_status = "FAIL"
+                elif randomized:
+                    c.batch_p = batch.paired_pvalue(c.batch)
             counts = np.asarray(ao["counts"], dtype=np.int64)
             # deterministic part
             trivial_needed = c.k > c.n
@@ -300,12 +314,29 @@ def adjust(cells: list[Cell], fwer: float, fdr: float) -> None:
                     c.stat_status = "FAIL"
             else:
                 c.stat_status = "LAW_MISMATCH"
+    # randomized rows' batch-size invariance: its own Holm family
+    batch_cells = [c for c in cells if c.batch_p is not None]
+    if batch_cells:
+        hb = stats.holm([c.batch_p for c in batch_cells], fwer)
+        for c, adj, rej in zip(batch_cells, hb.adjusted, hb.reject, strict=True):
+            c.batch_p_holm = float(adj)
+            if rej:
+                c.batch_status = "FAIL"
+                c.batch_reason = (
+                    "; ".join(
+                        f"{name}: {batch.describe(st, randomized=True)}"
+                        for name, st in c.batch.items()
+                    )
+                    + f" (Holm p={adj:.2g})"
+                )
     for c in cells:
-        c.status = worst([c.det_status, c.stat_status])
+        c.status = worst([c.det_status, c.stat_status, c.batch_status])
         if c.stat_status != "PASS" and c.det_status == "PASS":
             c.reason = (c.reason + "; " if c.reason else "") + (
                 f"Holm p={c.p_holm:.2g}, coverage {c.coverage:.4f} vs {c.target:.4f}"
             )
+        if c.batch_status != "PASS":
+            c.reason = (c.reason + "; " if c.reason else "") + f"batch {c.batch_reason}"
 
 
 @dataclass
@@ -458,6 +489,9 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
 
     # cells.csv
     fields = [f for f in asdict(cells[0])] if cells else []
+    has_batch = any(c.batch for c in cells)
+    if not has_batch:  # reports of studies without the batch check keep their columns
+        fields = [f for f in fields if not f.startswith("batch")]
     with (out / "cells.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=fields)
         w.writeheader()
@@ -468,7 +502,8 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
             d["bracket_offsets"] = json.dumps(d["bracket_offsets"], sort_keys=True)
             d["effective_n"] = json.dumps(d["effective_n"], sort_keys=True)
             d["warnings"] = " | ".join(d["warnings"])
-            w.writerow(d)
+            d["batch"] = json.dumps(d["batch"], sort_keys=True)
+            w.writerow({k: d[k] for k in fields})
     lib_rows = [r for r in rows if r.library != "reference"]
     headline = headline_counts(lib_rows)
     payload = {
@@ -494,6 +529,13 @@ def write_report(run_dir: str | Path, out_dir: str | Path | None = None) -> dict
         "controls": controls,
         "rows": [asdict(r) for r in rows],
     }
+    if has_batch:
+        payload["batch"] = {
+            "sizes": study.get("batch_sizes"),
+            "cells": sum(bool(c.batch) for c in cells),
+            "randomized_cells_tested": sum(c.batch_p is not None for c in cells),
+            "cells_not_invariant": sum(c.batch_status != "PASS" for c in cells),
+        }
     (out / "matrix.json").write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     (out / "matrix.md").write_text(render_matrix_md(cells, rows, payload), encoding="utf-8")
     (out / "summary.md").write_text(render_summary_md(cells, rows, payload), encoding="utf-8")
@@ -585,7 +627,36 @@ def render_matrix_md(cells: list[Cell], rows: list[RowSummary], payload: dict[st
             f"{'' if c.p_holm is None else f'{c.p_holm:.2g}'} | "
             f"{(c.reason + ' ' + c.message[:80]).strip()} |"
         )
+    if payload.get("batch"):
+        lines += render_batch_md(cells, payload["batch"])
     return "\n".join(lines) + "\n"
+
+
+def render_batch_md(cells: list[Cell], info: dict[str, Any]) -> list[str]:
+    """Batch-size invariance section of ``matrix.md``: every cell that is not invariant."""
+    sizes = ", ".join(f"size={s}" for s in info["sizes"] or [])
+    lines = [
+        "",
+        "## Batch-size invariance",
+        "",
+        f"The test points of each repetition were predicted again in chunks ({sizes}) and "
+        f"in one shuffled call, and compared with the full batch: {info['cells']} cells, "
+        f"{info['randomized_cells_tested']} of them randomized (paired test on mean set "
+        f"size and coverage, Holm across those cells); {info['cells_not_invariant']} cells "
+        "are not invariant.",
+        "",
+        "| row | dgp | n | alpha | batch status | detail |",
+        "|---|---|---|---|---|---|",
+    ]
+    for c in sorted(
+        (c for c in cells if c.batch_status != "PASS"),
+        key=lambda c: (c.row, c.dgp, c.n, -Fraction(c.alpha)),
+    ):
+        lines.append(
+            f"| `{c.row}` | {c.dgp} | {c.n} | {_alpha_label(c.alpha)} | {c.batch_status} | "
+            f"{c.batch_reason} |"
+        )
+    return lines
 
 
 def render_summary_md(cells: list[Cell], rows: list[RowSummary], payload: dict[str, Any]) -> str:

@@ -56,7 +56,7 @@ def _strip(rec: dict) -> dict:
 
 
 def test_load_builtin_studies() -> None:
-    for name in ("smoke", "default", "full"):
+    for name in ("smoke", "default", "full", "batch"):
         s = study.load_study(name)
         assert s.workers <= 4 and s.reps >= 20
     assert study.load_study("default").reps == 200
@@ -222,6 +222,10 @@ def _write(tmp_path: Path, text: str, name: str = "s.toml") -> Path:
         ("n_folds = [5]\n", "", "n_folds"),
         ('alphas = ["0.1", "0.2"]', 'alphas = ["1.5"]', "alpha must lie in"),
         ('dgps = ["reg_constant"]', 'dgps = ["cls_gauss"]', "has no methods on grid"),
+        ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = [1, 60]", "not smaller"),
+        ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = [0]", "positive integer"),
+        ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = [3, 3]", "duplicates"),
+        ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = 3", "must be a list"),
     ],
 )
 def test_load_study_validates(tmp_path: Path, old: str, new: str, match: str) -> None:

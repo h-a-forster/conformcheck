@@ -1,0 +1,5 @@
+puncc 0.9.3 numpy 2.5.4 scikit-learn 1.9.1
+two test points: intervals [[-2.196, 0.97], [-2.154, 1.02]]
+one test point raised RuntimeError: Each Y_pred must contain lower and higher quantiles predictions, respectively.
+REPRODUCED
+exit=1

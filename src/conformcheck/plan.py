@@ -19,8 +19,10 @@ from conformcheck.runner import evaluate_unit
 from conformcheck.study import Study, Unit, enumerate_units
 
 
-def _probe(unit: Unit, seed: int, test_points: int, reps: int = 2) -> float:
-    cfg = {"reps": reps, "test_points": test_points, "seed": seed}
+def _probe(
+    unit: Unit, seed: int, test_points: int, reps: int = 2, batch_sizes: tuple[int, ...] = ()
+) -> float:
+    cfg = {"reps": reps, "test_points": test_points, "seed": seed, "batch_sizes": batch_sizes}
     t = time.perf_counter()
     evaluate_unit(unit.key(), cfg)
     return (time.perf_counter() - t) / reps
@@ -38,7 +40,9 @@ def probe_points(units: list[Unit]) -> list[Unit]:
 
 def _costs(study: Study, units: list[Unit]) -> tuple[list[int], list[float]]:
     pts = probe_points(units)
-    return [u.n for u in pts], [_probe(u, study.seed, study.test_points) for u in pts]
+    return [u.n for u in pts], [
+        _probe(u, study.seed, study.test_points, batch_sizes=study.batch_sizes) for u in pts
+    ]
 
 
 def estimate_seconds(study: Study, units: list[Unit], echo=print) -> float:  # type: ignore[no-untyped-def]

@@ -54,7 +54,8 @@ Each cell gets one of the following statuses. When several apply, the most sever
 
 - **ERROR**: the library crashed.
 - **FAIL**: under-coverage (statistical rejection, or a rank deficit found by rank
-  recovery or bracketing).
+  recovery or bracketing), or, in a study with `batch_sizes`, sets or intervals that
+  change with the batch (end of section 4).
 - **LAW_MISMATCH**: the distribution of covered counts differs from the law although
   the mean test alone does not reject.
 - **CONSERVATIVE**: over-coverage (statistical rejection, or a rank surplus found by
@@ -124,7 +125,8 @@ These rows pass every cell. Some refuse only where `k > n`, which is valid.
 - crepes smoothed LAC and smoothed class-conditional.
 - puncc split, CQR, LAC, APS (both settings), deterministic RAPS and class-conditional
   LAC. Its APS and RAPS sets are wrong when fewer test points than classes are
-  predicted in one call, which the study grid does not do (F11).
+  predicted in one call, which the study grid does not do (F11), and its CQR raises for
+  a single test point (F12, a candidate found by the batch-size check).
 - TorchCP LAC, APS (both settings), RAPS (both settings) and class-conditional LAC.
 
 ## 3. Oracle controls
@@ -190,8 +192,10 @@ family.
 Re-check on 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases, and
 the repros of F1, F9 and F10 give the same output as in round 2. F1 and F9 also
 reproduce on MAPIE 1.5.0 (`docs/upstream/` has the issue texts). F11 was found in code
-review after round 2; it was already reported upstream in puncc pull request #97. How
-MAPIE 1.5.0 differs from 1.6.0 across the whole grid is at the end of this section.
+review after round 2; it was already reported upstream in puncc pull request #97. The
+batch-size invariance check added afterwards reproduces F11 and found F12; both are
+outside the default grid. How MAPIE 1.5.0 differs from 1.6.0 across the whole grid is at
+the end of this section.
 
 ### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
 
@@ -570,6 +574,67 @@ of classes. The repro `manual__puncc__aps_raps__set_size_capped_by_batch.py` use
 the public `deel.puncc.classification` API; it reproduces under numpy 2.5.4 and under
 `numpy<2` (numpy 1.26.4, Python 3.12).
 
+### F12. puncc CQR raises for a single test point (candidate, found 2026-10-30 by the batch-size check)
+
+`CQR.predict` on one test point raises `RuntimeError: Each Y_pred must contain lower
+and higher quantiles predictions, respectively.` The same point predicted together with
+at least one other works. `DualPredictor.predict` (`deel/puncc/api/prediction.py`)
+stacks the two quantile predictions into an `(m, 2)` array and then calls `squeeze`, so
+`m = 1` gives shape `(2,)`; `cqr_interval` (`api/prediction_sets.py`) requires a 2-D
+array with two columns. Online use, one point at a time, is impossible with the
+documented `DualPredictor` pattern. Coverage is not affected: the call fails loudly.
+
+The repro `manual__puncc__cqr__single_test_point.py` uses only the public API
+(`DualPredictor`, `deel.puncc.regression.CQR`, two scikit-learn `QuantileRegressor`
+models) and reproduces under numpy 2.5.4 and under `numpy<2` (numpy 1.26.4, Python
+3.12; `repros/puncc_numpy1_recheck.txt`). A search of puncc's issues and pull requests
+(terms "Y_pred", "squeeze", "single", "CQR") on 2026-10-30 found no report of it. It is
+labelled a candidate because the mechanism was read off the source and the repro, not
+discussed with the maintainers; no issue text has been written.
+
+### Batch-size invariance check (run 2026-10-30)
+
+A conformal method must give a test point the same set whichever other test points share
+the call. The study runner can now check this (`conformcheck.batch`, DESIGN section 3.3,
+item 5): with `batch_sizes` set, each repetition's test points are predicted again in
+consecutive chunks of each size and in one shuffled call, and compared with the full
+batch. Deterministic rows must match exactly (intervals within the rank tolerance);
+randomized rows get a fresh seed per chunk and a paired t-test per mode on the
+per-repetition differences in mean set size and coverage, with Holm across the 60
+randomized cells. A status that changes (a chunk raises where the full batch does not)
+counts as a difference in both.
+
+The built-in study `batch` (`src/conformcheck/studies/batch.toml`; fingerprint
+`6d65bfbb8486cd53`, seed 20261030) ran every adapter with R = 20 draws × m = 20 test
+points, chunk sizes 1, 3 and 7 plus a shuffled call, on `reg_gauss` and `cls_gauss`:
+split rows at n = 9 and 100, jackknife+ at n = 10, CV+ (K = 5, 10) at n = 20 and
+class-conditional rows at 9 points per class, alphas 0.1, 0.2 and the edge levels. 86
+units, 3.3 min on 4 workers, same versions as section 1. Results are in
+[docs/results/batch](docs/results/batch) (`matrix.md`, section "Batch-size
+invariance"). Its coverage cells are far too small to be a conformance result and are
+not used here.
+
+- **235 cells had an output to compare; 25 are not invariant, all in puncc.**
+- **F11 reproduced** in all 20 cells of puncc APS and RAPS, deterministic and
+  randomized. One point at a time, the deterministic sets differ from the full batch in
+  every point of every draw (400 of 400 in each of the 10 cells), with mean set size
+  2.98 to 3.00 labels smaller and coverage 0.87 to 0.89 lower. Chunks of 3 (fewer points
+  than the 4 classes) cut the mean size by 1.08 to 1.10. Chunks of 7 and the shuffled call give identical sets: every chunk of 7 holds at
+  least 4 points. The randomized rows show the same pattern (size 2.54 to 3.00 smaller
+  one point at a time; Holm p at most 5.2e-14), while chunks of 7 and the shuffled call
+  moved the mean set size by at most 0.08.
+- **New: F12.** puncc CQR raises in 20 of 20 draws when predicting one point at a time,
+  in all 5 of its cells; chunks of 3 and 7 and the shuffled call match the full batch.
+- **Invariant:** every MAPIE, crepes and TorchCP row, puncc split, LAC,
+  class-conditional and CV+, and every reference row. None of the 50 other randomized
+  cells was rejected (the smallest Holm-adjusted p is 0.35, a reference APS cell).
+- **Not compared:** cells where the full batch and every mode refuse or raise. MAPIE's
+  split and classification rows had an output in 2 to 5 of their 7 cells (refusals at
+  n = 9 and at the edge levels, F4 and F9); puncc jackknife+ in none (it crashes, F6); puncc CV+ in 2 of 4.
+
+With 20 draws the randomized test resolves a change in mean set size of a few tenths of
+a label, not a small one; the deterministic comparison has no such limit.
+
 ### MAPIE 1.5.0 vs 1.6.0 (run 2026-10-30)
 
 The default study's 13 MAPIE rows ran again under MAPIE 1.5.0 and 1.6.0, in two venvs
@@ -730,6 +795,11 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
 - **A single seed.** The run uses one seed and one machine (Windows, CPU). The
   deterministic findings (F2, F4, F5, F6, F8, F9 and the F10 mechanism) do not depend on
   the seed. The statistical ones have Holm p far below the threshold.
+- **Batch-size invariance was checked at a small size only.** The check is opt-in
+  (`batch_sizes`); the default study ran without it, and the `batch` study covers two
+  synthetic DGPs, a few `n` and 20 draws of 20 points. A batch dependence that appears
+  only at other sizes, on other data or in a branch these draws do not reach would be
+  missed.
 - **puncc under numpy 2.** puncc declares `numpy<2`, and the main run used numpy 2.5.4
   through a lockfile override. Every puncc finding was re-checked under numpy 1.26.4, but
   the PASS cells of puncc were not.
@@ -761,6 +831,10 @@ uv run python scripts/raps_neff.py runs/default --out runs/default/raps_neff.md
 
 The MAPIE 1.5.0 vs 1.6.0 comparison (about 45 minutes on 4 workers; resumable):
 `bash scripts/mapie_versions.sh`, which writes `runs/mapie-versions-default/`.
+
+The batch-size invariance study (about 4 minutes on 4 workers):
+`uv run python scripts/run_study.py --study batch --out runs/batch --workers 4`, then
+`uv run conformcheck report runs/batch`.
 
 To rebuild the report from the committed per-unit records without re-running, gunzip
 `docs/results/default/units.jsonl.gz` into `runs/default/units.jsonl`, copy

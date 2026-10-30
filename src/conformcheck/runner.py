@@ -35,7 +35,7 @@ from typing import Any
 
 import numpy as np
 
-from conformcheck import diagnostics, laws
+from conformcheck import batch, diagnostics, laws
 from conformcheck.adapters.base import (
     AlphaOutput,
     ClassificationInput,
@@ -164,6 +164,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
     seed = int(study_cfg["seed"])
     per_class = bool(unit_key["per_class"])
     alphas = [Fraction(a) for a in unit_key["alphas"]]
+    batch_sizes = tuple(int(s) for s in study_cfg.get("batch_sizes", ()))
     m = dgp.test_size(n, m_req, per_class)
     record: dict[str, Any] = {
         **unit_key,
@@ -213,6 +214,7 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "effective_n": Counter(),
             "diff_max": None,
             "ties_reps": 0,
+            "batch": {},
         }
         for a in alphas
     }
@@ -267,6 +269,11 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             msg = f"{type(exc).__name__}: {exc}"[:500]
             outs = {a: AlphaOutput(status="error", message=msg) for a in alphas}
         ref_outs = ref_adapter.run(inp) if ref_adapter is not None else None
+        if batch_sizes:
+            brng = np.random.default_rng([lseed, 1])  # order of the shuffled mode
+            per_alpha = batch.check_repetition(adapter, inp, outs, draw.y_test, batch_sizes, brng)
+            for a in alphas:
+                batch.accumulate(acc[a]["batch"], per_alpha[a])
         ties = False
         if dgp.pool_size is not None:
             sc = _oracle_scores(dgp.name, spec.method, draw, model, qmodels)
@@ -365,6 +372,8 @@ def evaluate_unit(unit_key: dict[str, Any], study_cfg: dict[str, Any]) -> dict[s
             "diff_max": st["diff_max"],
             "ties_reps": st["ties_reps"],
         }
+        if batch_sizes:  # per mode: see conformcheck.batch
+            out_alphas[f"{a.numerator}/{a.denominator}"]["batch"] = st["batch"]
     record["status"] = "done"
     record["alphas_out"] = out_alphas
     return record
@@ -586,7 +595,12 @@ def run_study(
             echo(msg)
     if echo:
         echo(f"{len(todo)} units to run ({n_done}/{total} already done), {workers} workers")
-    cfg = {"reps": study.reps, "test_points": study.test_points, "seed": study.seed}
+    cfg = {
+        "reps": study.reps,
+        "test_points": study.test_points,
+        "seed": study.seed,
+        "batch_sizes": list(study.batch_sizes),
+    }
     t0 = time.perf_counter()
     finished = 0
     errors = 0

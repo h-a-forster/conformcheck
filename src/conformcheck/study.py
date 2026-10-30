@@ -62,11 +62,14 @@ class Study:
     grids: tuple[Grid, ...]
     reference: bool = True
     mutants: tuple[str, ...] = ()
+    batch_sizes: tuple[int, ...] = ()  # batch-size invariance check (conformcheck.batch)
     source: str = ""
 
     def config(self) -> dict[str, Any]:
         d = asdict(self)
         d.pop("source")
+        if not d["batch_sizes"]:  # studies without the check keep their fingerprints
+            d.pop("batch_sizes")
         return d
 
     @classmethod
@@ -89,6 +92,7 @@ class Study:
                 **d,
                 "alphas": tuple(str(a) for a in d["alphas"]),
                 "mutants": tuple(str(x) for x in d.get("mutants", ())),
+                "batch_sizes": tuple(int(s) for s in d.get("batch_sizes", ())),
             },
             grids=grids,
             source=source,
@@ -176,6 +180,18 @@ def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
     unknown = [x for x in mutants if x not in MUTANTS]
     if unknown:
         raise ValueError(f"{source}: unknown mutant(s) {unknown}; known: {list(MUTANTS)}")
+    test_points = _positive_int(raw["test_points"], "test_points")
+    raw_sizes = raw.get("batch_sizes", [])
+    if not isinstance(raw_sizes, list):
+        raise ValueError(f"{source}: 'batch_sizes' must be a list of positive integers")
+    batch_sizes = tuple(_positive_int(s, "batch_sizes entry") for s in raw_sizes)
+    if len(set(batch_sizes)) != len(batch_sizes):
+        raise ValueError(f"{source}: 'batch_sizes' has duplicates: {list(batch_sizes)}")
+    too_big = [s for s in batch_sizes if s >= test_points]
+    if too_big:
+        raise ValueError(
+            f"{source}: batch_sizes {too_big} are not smaller than test_points={test_points}"
+        )
     fwer = float(raw.get("fwer", 0.05))
     fdr = float(raw.get("fdr", 0.05))
     for what, v in (("fwer", fwer), ("fdr", fdr)):
@@ -185,7 +201,7 @@ def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
         name=str(raw["name"]),
         seed=int(raw["seed"]),
         reps=_positive_int(reps if reps is not None else raw["reps"], "reps"),
-        test_points=_positive_int(raw["test_points"], "test_points"),
+        test_points=test_points,
         workers=min(_positive_int(raw.get("workers", 4), "workers"), 4),
         fwer=fwer,
         fdr=fdr,
@@ -194,6 +210,7 @@ def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
         grids=tuple(grids),
         reference=bool(controls.get("reference", True)),
         mutants=mutants,
+        batch_sizes=batch_sizes,
         source=source,
     )
 
@@ -247,6 +264,8 @@ class Unit:
 
     def uid(self, study: Study) -> str:
         payload = {**self.key(), "reps": study.reps, "m": study.test_points, "seed": study.seed}
+        if study.batch_sizes:  # the record then holds the batch check as well
+            payload["batch_sizes"] = list(study.batch_sizes)
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
 
     def fractions(self) -> list[Fraction]:

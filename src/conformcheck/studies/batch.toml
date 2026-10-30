@@ -1,0 +1,38 @@
+# Batch-size invariance study (REPORT.md, "Batch-size invariance"). Each repetition's
+# test points are predicted in one call, then again in chunks of each size in
+# `batch_sizes` and in one shuffled call; every mode must give the full batch's sets and
+# intervals (randomized methods: the same distribution). Size 3 is below the number of
+# classes (4), size 7 does not divide test_points. A few CPU-minutes; the coverage cells
+# it also produces are far too small to be a conformance result.
+
+name = "batch"
+seed = 20261030
+reps = 20             # randomized rows: the paired test uses these 20 repetitions
+test_points = 20
+workers = 4
+fwer = 0.05
+fdr = 0.05
+alphas = ["0.1", "0.2"]
+edge_alphas = true
+batch_sizes = [1, 3, 7]
+
+[grids.split]
+n = [9, 100]
+dgps = ["reg_gauss", "cls_gauss"]
+
+[grids.jackknife_plus]
+n = [10]
+dgps = ["reg_gauss"]
+
+[grids.cv_plus]
+n = [20]
+n_folds = [5, 10]
+dgps = ["reg_gauss"]
+
+[grids.class_conditional]   # n is the per-class calibration size
+n = [9]
+dgps = ["cls_gauss"]
+
+[controls]
+reference = true
+mutants = []

@@ -53,6 +53,7 @@ section 4).
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
 | puncc APS and RAPS (found in code review, outside the grid; already reported in [puncc#97](https://github.com/deel-ai/puncc/pull/97)) | set size capped at the number of test points per call | one point at a time: 0.610 vs 0.900 |
+| puncc CQR (candidate; found by the batch-size check, outside the grid) | raises for a single test point (`DualPredictor` squeezes `(1, 2)` to `(2,)`) | every one-point call |
 
 An excerpt of the matrix (worst status over the DGPs and alphas at each n):
 
@@ -90,6 +91,10 @@ Each finding has a standalone repro under
 - **Statistical tests**: an exact test of the summed covered counts (FFT convolution of
   the law) plus a chi-square goodness-of-fit test per cell, Holm across all cells
   (FWER 0.05), Benjamini-Yekutieli reported alongside.
+- **Batch-size invariance** (opt-in, study key `batch_sizes`): the test points are
+  predicted again one at a time, in chunks and in shuffled order, and must get the same
+  sets and intervals (randomized methods: the same mean set size and coverage). The
+  `batch` study runs it in a few minutes.
 - **Self-validation**: reference implementations and four deliberately wrong mutants
   (`k-1`, `k+1`, `n` instead of `n+1`, no finite-sample correction) run through the
   same pipeline, so the false-alarm rate and the power are measured, not assumed.
@@ -168,8 +173,8 @@ uv run conformcheck repro runs/default --verify # standalone repro per finding
 
 `runs/<name>/progress.log` shows progress; rerunning the same command resumes from the
 last finished unit. The default study takes about an hour from scratch with 3 workers.
-`--study smoke` runs in under a minute; `--study full` (R=2000,
-m=1000) takes hours.
+`--study smoke` runs in under a minute; `--study batch` (batch-size invariance) in a few
+minutes; `--study full` (R=2000, m=1000) takes hours.
 
 ## Validating the oracle
 

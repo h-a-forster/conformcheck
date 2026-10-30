@@ -25,6 +25,19 @@ added the rest (REPORT section 1).
 The repro scripts exit 1 while the finding reproduces, 0 when it no longer does, and 2
 on an unexpected crash.
 
+## batch/
+
+The built-in `batch` study (batch-size invariance, run 2026-10-30; REPORT section 4,
+"Batch-size invariance check"). Only the batch-size results are findings: its coverage
+cells (R = 20, m = 20) are far too small to be a conformance result.
+
+| File | Contents |
+|---|---|
+| `run.json` | Study configuration (with `batch_sizes`), fingerprint, versions, timing |
+| `matrix.md` | The usual matrix; the section "Batch-size invariance" lists every cell whose sets or intervals change with the batch |
+| `matrix.json`, `summary.md` | As for `default/`; `matrix.json` has a `batch` block with the cell counts |
+| `units.jsonl.gz` | The per-unit records, each alpha with its per-mode batch comparison |
+
 ## mapie-versions/
 
 The default study's MAPIE rows (and the reference rows) under MAPIE 1.5.0 and 1.6.0, run

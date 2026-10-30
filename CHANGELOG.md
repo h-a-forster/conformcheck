@@ -5,6 +5,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Batch-size invariance check (`conformcheck.batch`), opt-in with the study key
+  `batch_sizes`: each repetition's test points are predicted again in chunks of each size
+  and in one shuffled call. Deterministic rows must match the full batch exactly;
+  randomized rows get a paired test on mean set size and coverage (Holm across cells).
+  A difference is FAIL in the report, with a "Batch-size invariance" section in
+  `matrix.md` and `batch*` columns in `cells.csv`. Studies without `batch_sizes` keep
+  their fingerprints, unit ids and report columns.
+- Built-in study `batch` (a few minutes) and its results in `docs/results/batch/`. It
+  reproduces F11 in all 20 puncc APS and RAPS cells and found REPORT.md candidate F12
+  (puncc CQR raises for a single test point), with a standalone repro that reproduces
+  under numpy 2.5.4 and 1.26.4.
+
 ## [0.2.0] - 2026-10-30
 
 Round 2 of the default study (RAPS rows, classification bracketing, an informative
