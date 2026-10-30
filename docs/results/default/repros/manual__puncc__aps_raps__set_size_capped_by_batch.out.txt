@@ -1,0 +1,5 @@
+puncc 0.9.3 numpy 2.5.4 scikit-learn 1.9.1
+APS(rand=False): identical sets 0/200; set sizes one point at a time [1], in one batch [2, 3, 4]; coverage 0.610 one at a time, 1.000 in one batch (target 0.9)
+RAPS(lambd=0.1, k_reg=1, rand=False): identical sets 0/200; set sizes one point at a time [1], in one batch [3, 4]; coverage 0.610 one at a time, 0.985 in one batch (target 0.9)
+REPRODUCED
+exit=1

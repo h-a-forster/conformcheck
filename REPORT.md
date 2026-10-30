@@ -123,7 +123,8 @@ These rows pass every cell. Some refuse only where `k > n`, which is valid.
 - MAPIE jackknife+.
 - crepes smoothed LAC and smoothed class-conditional.
 - puncc split, CQR, LAC, APS (both settings), deterministic RAPS and class-conditional
-  LAC.
+  LAC. Its APS and RAPS sets are wrong when fewer test points than classes are
+  predicted in one call, which the study grid does not do (F11).
 - TorchCP LAC, APS (both settings), RAPS (both settings) and class-conditional LAC.
 
 ## 3. Oracle controls
@@ -183,6 +184,11 @@ by 1/(n+1), about 0.001 at n = 999, while the 95% interval half-width there is a
 The coverage figures below are the mean over 200 draws × 500 test points (fewer test
 points on the toy datasets), with a 95% t interval from the empirical spread of the 200
 covered counts. Holm p-values are adjusted over all 4348 statistical cells.
+
+Re-check on 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases, and
+the repros of F1, F9 and F10 give the same output as in round 2. F1 and F9 also
+reproduce on MAPIE 1.5.0 (`docs/upstream/` has the issue texts). F11 was found in code
+review after round 2.
 
 ### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
 
@@ -528,6 +534,31 @@ against the purpose of the regularization. TorchCP's randomized RAPS, whose set 
 Repros: `manual__puncc__raps__set_rule_vs_score.py` and the generated
 `puncc__raps__rand-True__coverage.py` (0.954 against 0.833 at n = 5, alpha = 0.2); both
 were re-checked under `numpy<2`.
+
+### F11. puncc APS and RAPS sets are capped at the number of test points (found 2026-10-30, outside the study grid)
+
+`deel.puncc.api.prediction_sets.raps_set`, which `APS` and `RAPS` use for prediction with
+and without randomization, sets the number of labels to
+`min(#{labels below tau} + 1, pred_len)`, where `pred_len` is the number of test points
+in the call, not the number of classes. Two consequences:
+
+- **One test point gets the top label alone.** Predicting points one at a time (as in
+  online use) always returns a singleton set. In the repro (a fitted
+  `LogisticRegression` on four Gaussian classes, n = 1000, alpha = 0.1, 200 test
+  points), `APS(rand=False)` and `RAPS(rand=False)` give coverage 0.610 one point at a
+  time against 1.000 and 0.985 for the same points predicted in one batch; 0 of 200
+  sets agree.
+- **Crash with large tau.** When every label is below tau and the batch has more points
+  than classes, the index `L - 1` equals the number of classes and the randomized branch
+  raises `IndexError` (for example `raps_set` with tau = 5 on 10 points of 4 classes).
+
+The study did not see this: it predicts 500 test points per call, more than the number
+of classes, and a tau above every label's regularized mass needs `k > n`, where puncc
+refuses the level. The PASS results of puncc APS and deterministic RAPS (section 2) hold
+only for batches larger than the number of classes. The fix is to cap `L` at the number
+of classes. The repro `manual__puncc__aps_raps__set_size_capped_by_batch.py` uses only
+the public `deel.puncc.classification` API; it reproduces under numpy 2.5.4 and under
+`numpy<2` (numpy 1.26.4, Python 3.12).
 
 ## 5. Pre-registered hypotheses
 

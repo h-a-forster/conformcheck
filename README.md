@@ -25,14 +25,14 @@ jackknife+ and CV+, LAC, APS and RAPS (randomized and not) and class-conditional
 
 The default study ran MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3 and TorchCP 1.2.1. It used
 R = 200 calibration draws × 500 test points per cell and 4348 statistical cells, with
-Holm FWER 0.05. **18 of the 37 library-method rows are flagged at n <= 100.** Only one
-row under-covers: MAPIE APS with `include_last_label=False`, whose coverage follows the
-model rather than the law (below target with both synthetic classifiers, above it on
-digits). The other flags are over-coverage by one order statistic, a randomized RAPS set
-rule that does not match its own score, MAPIE's documented conservatism of
-`include_last_label=True`, refusals of a level where a valid set exists, and crashes.
-The reference rows produced 0 false alarms. Details, intervals and limitations are in
-[REPORT.md](REPORT.md).
+Holm FWER 0.05. **18 of the 37 library-method rows are flagged at n <= 100.** In the
+study grid only one row under-covers: MAPIE APS with `include_last_label=False`, whose
+coverage follows the model rather than the law (below target with both synthetic
+classifiers, above it on digits). The other flags are over-coverage by one order
+statistic, a randomized RAPS set rule that does not match its own score, MAPIE's
+documented conservatism of `include_last_label=True`, refusals of a level where a valid
+set exists, and crashes. The reference rows produced 0 false alarms. Details, intervals
+and limitations are in [REPORT.md](REPORT.md).
 
 | Finding | Kind | Size |
 |---|---|---|
@@ -45,6 +45,7 @@ The reference rows produced 0 false alarms. Details, intervals and limitations a
 | puncc randomized RAPS | set rule does not match puncc's own score | 0.990 and 0.917 vs 0.900 on two synthetic models |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
+| puncc APS and RAPS (found in code review, outside the grid) | set size capped at the number of test points per call | one point at a time: 0.610 vs 0.900 |
 
 An excerpt of the matrix (worst status over the DGPs and alphas at each n):
 
@@ -190,6 +191,8 @@ m=1000) takes hours.
 - [docs/DESIGN.md](docs/DESIGN.md): formulas, oracle, study design, pre-registered
   hypotheses.
 - [docs/results/default](docs/results/default): matrix, summary, cell table and repros.
+- [docs/upstream](docs/upstream/README.md): issue texts for the libraries (not filed).
+- [CHANGELOG.md](CHANGELOG.md) and [release notes](docs/release-notes-0.2.0.md).
 - [AGENTS.md](AGENTS.md): conventions, architecture map and current status.
 
 ## Citation
@@ -202,7 +205,7 @@ If you use conformcheck, please cite it via [CITATION.cff](CITATION.cff):
   author = {{conformcheck contributors}},
   year   = {2026},
   url    = {https://github.com/h-a-forster/conformcheck},
-  version = {0.1.0}
+  version = {0.2.0}
 }
 ```
 
