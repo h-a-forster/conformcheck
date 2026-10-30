@@ -385,7 +385,8 @@ documents this option as allowing infinite bounds. With it set, the MAPIE 1.6.0 
 regressor still raises where k > n instead of returning (-inf, inf). The message says to
 "set unbounded=True", which is an internal argument the public option does not forward
 to. This is REFUSED, not unsafe. (MAPIE 1.5.0 instead returns finite, under-covering
-intervals there: FAIL, see "MAPIE 1.5.0 vs 1.6.0" below.) `CrossConformalRegressor` honours the option.
+intervals there: FAIL, see "MAPIE 1.5.0 vs 1.6.0" below.) `CrossConformalRegressor`
+honours the option.
 
 Repros:
 
@@ -553,7 +554,7 @@ in the call, not the number of classes. Two consequences:
 
 - **One test point gets at most the top label.** Predicting points one at a time (as in
   online use) returns the top label alone without randomization, and the top label or an
-  empty set with it. In the repro (a fitted `LogisticRegression` on four Gaussian
+  empty set with randomization. In the repro (a fitted `LogisticRegression` on four Gaussian
   classes, n = 1000, alpha = 0.1, 200 test points), `APS(rand=False)` and
   `RAPS(rand=False)` give coverage 0.610 one point at a time against 1.000 and 0.985 for
   the same points predicted in one batch; 0 of 200 sets agree.

@@ -28,8 +28,8 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
   randomized RAPS set rule does not match its score). Also F11 (puncc APS and RAPS sets
   capped at the number of test points per call; found in code review, outside the study
   grid), which was already reported upstream in
-  [puncc#97](https://github.com/deel-ai/puncc/pull/97). F1 (MAPIE APS `include_last_label=False`) now also under-covers with the
-  informative classifier.
+  [puncc#97](https://github.com/deel-ai/puncc/pull/97). F1 (MAPIE APS
+  `include_last_label=False`) now also under-covers with the informative classifier.
 - MAPIE 1.5.0 vs 1.6.0: under 1.5.0 all 13 MAPIE rows are flagged at n <= 100 (9 under
   1.6.0). 1.5.0 returns finite intervals where `k > n` (CV+, jackknife+, split with
   `allow_infinite_bounds=True`; coverage down to 0.828 against 1) and uses one order
