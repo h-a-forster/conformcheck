@@ -60,9 +60,12 @@ src/conformcheck/
   studies/          smoke.toml, default.toml, full.toml
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
+scripts/compare_runs.py  two runs unit by unit and cell by cell (e.g. a library at two versions)
+scripts/mapie_versions.sh  default study's MAPIE rows under MAPIE 1.5.0 and 1.6.0 (resumable)
 tests/              laws, stats, reference, adapters, pipeline, testing API, controls
 REPORT.md           default study findings; docs/results/default/ holds its outputs
 docs/DESIGN.md      the spec
+docs/upstream/      issue texts for the libraries (not filed)
 ```
 
 ## How to test
@@ -89,8 +92,23 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-24): **round 2 done (RAPS, classification bracketing, informative
-classifier); not tagged, not pushed.**
+Status (2026-10-30): **0.2.0 prepared on branch `polish-2026-10-30` (CHANGELOG, release
+notes in `docs/release-notes-0.2.0.md`); not tagged.** The repository is public; `main`
+holds round 2.
+
+- 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases. The F1, F9 and
+  F10 repros give the same output; F1 and F9 also reproduce on MAPIE 1.5.0. New finding
+  F11 (puncc APS/RAPS set size capped at the number of test points per call), found in
+  code review and outside the study grid, with a manual repro. Issue texts for F1, F9,
+  F10 and F11 are in `docs/upstream/` (not filed).
+- MAPIE 1.5.0 vs 1.6.0 study: prepared, not yet run. 1.6.0 changed the classification
+  and CQR order-statistic selection and the regression quantile at `k > n`.
+  `scripts/mapie_versions.sh` builds two pinned venvs in `tmp/envs/` from `uv.lock`
+  (only the mapie pin differs), runs the default study's MAPIE and reference rows in
+  each, then `scripts/compare_runs.py`; outputs go to `runs/mapie-versions-default/`
+  (gitignored). Estimated 45 min on an idle machine, up to about 75 min under load
+  (4 workers). The smoke study already shows 1.5.0 returning finite intervals where
+  `k > n`.
 
 - Round 2 run: `runs/default-r2` (gitignored), fingerprint `cbfed0fa569dc01f`. It was
   seeded with the 779 unaffected v0.1 units (unit ids depend only on unit, R, m, seed),
@@ -162,5 +180,9 @@ Open items (not done):
 - The `full` study (R = 2000, m = 1000; hours; resumable).
 - CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled).
 - puncc PASS cells were not re-checked under `numpy<2` (only its findings were).
-- First CI run, once the repository is pushed (owner's go-ahead).
-- Report the findings upstream (owner's decision).
+- First CI run (CI now also runs on pushes to `main`).
+- Run the MAPIE 1.5.0 vs 1.6.0 study, write it up (REPORT section or
+  `docs/results/mapie-versions/`) and commit the small outputs.
+- Issue texts for F2-F8; filing any of them is the owner's decision.
+- A batch-size invariance check (one test point vs a batch) would have caught F11; the
+  runner always predicts 500 points per call.

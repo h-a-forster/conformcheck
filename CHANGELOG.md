@@ -5,6 +5,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-30
+
+Round 2 of the default study (RAPS rows, classification bracketing, an informative
+classifier), fixes to the report pipeline, and upstream issue texts.
+
 ### Added
 
 - RAPS rows: MAPIE (`include_last_label` True and `"randomized"`, tested against the
@@ -17,6 +22,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `scripts/raps_neff.py`: tests MAPIE RAPS against candidate calibration sizes.
 - `conformcheck plan` probes the middle `n` of each group as well.
 - Round-2 study results (`docs/results/default/`), REPORT.md findings F9 and F10.
+- REPORT.md finding F11 (puncc APS and RAPS sets are capped at the number of test points
+  per call), found in code review, with a standalone repro.
+- `docs/upstream/`: issue texts for F1, F9, F10 and F11, re-checked against MAPIE 1.6.0
+  and puncc 0.9.3 (not filed).
+- `scripts/compare_runs.py`: compares two runs unit by unit (raw results) and cell by
+  cell (statuses), for example one library at two versions.
+- `scripts/mapie_versions.sh`: the default study's MAPIE rows under MAPIE 1.5.0 and
+  1.6.0, each in a venv pinned from `uv.lock`, followed by `compare_runs.py` (resumable).
 
 ### Fixed
 
@@ -40,11 +53,9 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   uniforms and on an untested branch of MAPIE's randomized RAPS rule.
 - Tests compare the full pmf of the class-conditional and tied-score laws with
   simulation, not only their means.
-
 - `diagnostics.bracket_rank` returned a lower end one too low (`#{s <= a}` instead of
   `#{s < a} + 1`), which hid positive offsets. Bracketing was diagnostic only before, so
   no published status depended on it.
-
 - Coverage intervals in reports are t intervals from the empirical spread of the counts.
   They used the variance of the exact (null) law, which is the wrong spread in the
   cells that are reported, and could extend past 1. They are now clipped to [0, 1].
@@ -75,6 +86,7 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The CV+ bound is flagged as extrapolated where K does not divide n.
 - README: the library extras are supported only through `uv sync --all-extras` in a
   clone.
+- CI also runs on pushes to `main`; GitHub Actions are pinned to commit SHAs.
 
 ## [0.1.0] - 2026-10-23
 
