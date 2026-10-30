@@ -726,9 +726,9 @@ against 9 of 13 under 1.6.0** (results in `docs/results/mapie-versions/`):
   - class-conditional methods on the digits data;
   - Mondrian/conditional regression;
   - RAPS with lambda and k_reg other than 0.1 and 1 (puncc, TorchCP).
-- **CI has never run.** The workflow (pull_request and workflow_dispatch) is configured
-  but has never run: it triggers only on pull requests and manual dispatch, and neither has
-  happened yet. All tests were run locally only.
+- **CI had not run before this release.** The workflow runs on pushes to `main`, pull
+  requests and manual dispatch; the push trigger was added for this release, and before
+  it no pull request or manual run had happened. All tests were run locally only.
 - **Library versions move.** These are statements about MAPIE 1.6.0, crepes 0.9.1,
   puncc 0.9.3 and TorchCP 1.2.1. Re-run `conformcheck repro --verify` against newer
   versions before citing a finding.
