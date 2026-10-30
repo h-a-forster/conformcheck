@@ -571,7 +571,9 @@ the public `deel.puncc.classification` API; it reproduces under numpy 2.5.4 and 
 The default study's 13 MAPIE rows ran again under MAPIE 1.5.0 and 1.6.0, in two venvs
 pinned from `uv.lock` that differ only in the mapie pin (`scripts/mapie_versions.sh`;
 865 units each, 0 errors). The fresh 1.6.0 run reproduced the committed round-2 records:
-324 of 324 MAPIE units have identical raw results. Under 1.5.0, 161 of the 324 units
+324 of 324 MAPIE units have identical raw results. (Of the 541 reference-control units,
+10 differ, all in the rank diagnostics of deliberately broken `split_abs` controls; their
+covered counts and statuses are unchanged.) Under 1.5.0, 161 of the 324 units
 differ, 156 cells change status, and **13 of 13 MAPIE rows are flagged at n <= 100,
 against 9 of 13 under 1.6.0** (results in `docs/results/mapie-versions/`):
 
