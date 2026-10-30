@@ -22,7 +22,7 @@ uv run ruff format --check .
 ```
 
 CI runs these on Ubuntu (Python 3.11 and 3.13) and Windows (Python 3.13) for pull
-requests.
+requests and pushes to `main`.
 
 Test rules:
 
