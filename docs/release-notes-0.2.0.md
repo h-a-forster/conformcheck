@@ -24,10 +24,11 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
 
 - 18 of the 37 library-method rows are flagged at n <= 100.
 - Reference rows: 0 Holm rejections in 1010 statistical cells, 0 non-PASS cells.
-- New findings: F9 (MAPIE ignores `RAPSConformityScore(size_raps=...)`), F10 (puncc
-  randomized RAPS set rule does not match its score), and F11 (puncc APS and RAPS sets
+- New findings: F9 (MAPIE ignores `RAPSConformityScore(size_raps=...)`) and F10 (puncc
+  randomized RAPS set rule does not match its score). Also F11 (puncc APS and RAPS sets
   capped at the number of test points per call; found in code review, outside the study
-  grid). F1 (MAPIE APS `include_last_label=False`) now also under-covers with the
+  grid), which was already reported upstream in
+  [puncc#97](https://github.com/deel-ai/puncc/pull/97). F1 (MAPIE APS `include_last_label=False`) now also under-covers with the
   informative classifier.
 - MAPIE 1.5.0 vs 1.6.0: under 1.5.0 all 13 MAPIE rows are flagged at n <= 100 (9 under
   1.6.0). 1.5.0 returns finite intervals where `k > n` (CV+, jackknife+, split with
@@ -35,9 +36,10 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
   statistic too many for LAC, CQR and randomized APS and RAPS (87 cells). The 1.6.0
   run reproduced the round-2 records exactly.
 
-Details: [REPORT.md](../REPORT.md). Issue texts for F1, F9, F10 and F11, re-checked on
+Details: [REPORT.md](../REPORT.md). Issue texts for F1, F9 and F10, re-checked on
 2026-10-30 against MAPIE 1.6.0 and puncc 0.9.3 (still the latest releases), are in
-[docs/upstream](upstream/README.md); none has been filed.
+[docs/upstream](upstream/README.md); none has been filed. For F11 that folder has a
+supporting comment for puncc#97 instead.
 
 ## Fixes
 

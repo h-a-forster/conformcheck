@@ -3,8 +3,9 @@
 ``deel.puncc.api.prediction_sets.raps_set`` (used by ``APS`` and ``RAPS``, with and without
 randomization) computes the set size as ``min(#{labels below tau} + 1, pred_len)``, where
 ``pred_len`` is the number of test points, not the number of classes. Predicting one test
-point therefore always returns the top label alone, and the same point gets a different
-set depending on how many other points are predicted with it.
+point therefore returns at most the top label (the top label alone without randomization),
+and the same point gets a different set depending on how many other points are predicted
+with it. Already reported upstream in deel-ai/puncc pull request #97.
 
 Standalone: numpy, scikit-learn and puncc only. Exits 1 while the problem reproduces.
 """

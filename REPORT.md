@@ -188,8 +188,8 @@ covered counts. Holm p-values are adjusted over all 4348 statistical cells.
 Re-check on 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases, and
 the repros of F1, F9 and F10 give the same output as in round 2. F1 and F9 also
 reproduce on MAPIE 1.5.0 (`docs/upstream/` has the issue texts). F11 was found in code
-review after round 2. How MAPIE 1.5.0 differs from 1.6.0 across the whole grid is at the
-end of this section.
+review after round 2; it was already reported upstream in puncc pull request #97. How
+MAPIE 1.5.0 differs from 1.6.0 across the whole grid is at the end of this section.
 
 ### F1. MAPIE APS `include_last_label=False` does not follow the law; its coverage follows the model
 
@@ -538,17 +538,22 @@ were re-checked under `numpy<2`.
 
 ### F11. puncc APS and RAPS sets are capped at the number of test points (found 2026-10-30, outside the study grid)
 
+Already reported upstream: puncc pull request
+[#97](https://github.com/deel-ai/puncc/pull/97), opened 2026-10-07 by another contributor
+and open on 2026-10-30, describes the same line and fix. conformcheck found it
+independently; `docs/upstream/` holds a supporting comment for #97, not a new issue.
+
 `deel.puncc.api.prediction_sets.raps_set`, which `APS` and `RAPS` use for prediction with
 and without randomization, sets the number of labels to
 `min(#{labels below tau} + 1, pred_len)`, where `pred_len` is the number of test points
 in the call, not the number of classes. Two consequences:
 
-- **One test point gets the top label alone.** Predicting points one at a time (as in
-  online use) always returns a singleton set. In the repro (a fitted
-  `LogisticRegression` on four Gaussian classes, n = 1000, alpha = 0.1, 200 test
-  points), `APS(rand=False)` and `RAPS(rand=False)` give coverage 0.610 one point at a
-  time against 1.000 and 0.985 for the same points predicted in one batch; 0 of 200
-  sets agree.
+- **One test point gets at most the top label.** Predicting points one at a time (as in
+  online use) returns the top label alone without randomization, and the top label or an
+  empty set with it. In the repro (a fitted `LogisticRegression` on four Gaussian
+  classes, n = 1000, alpha = 0.1, 200 test points), `APS(rand=False)` and
+  `RAPS(rand=False)` give coverage 0.610 one point at a time against 1.000 and 0.985 for
+  the same points predicted in one batch; 0 of 200 sets agree.
 - **Crash with large tau.** When every label is below tau and the batch has more points
   than classes, the index `L - 1` equals the number of classes and the randomized branch
   raises `IndexError` (for example `raps_set` with tau = 5 on 10 points of 4 classes).

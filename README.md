@@ -51,7 +51,7 @@ run reproduced the committed records exactly (REPORT section 4).
 | puncc randomized RAPS | set rule does not match puncc's own score | 0.990 and 0.917 vs 0.900 on two synthetic models |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |
-| puncc APS and RAPS (found in code review, outside the grid) | set size capped at the number of test points per call | one point at a time: 0.610 vs 0.900 |
+| puncc APS and RAPS (found in code review, outside the grid; already reported in [puncc#97](https://github.com/deel-ai/puncc/pull/97)) | set size capped at the number of test points per call | one point at a time: 0.610 vs 0.900 |
 
 An excerpt of the matrix (worst status over the DGPs and alphas at each n):
 

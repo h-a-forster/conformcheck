@@ -23,9 +23,10 @@ classifier), fixes to the report pipeline, and upstream issue texts.
 - `conformcheck plan` probes the middle `n` of each group as well.
 - Round-2 study results (`docs/results/default/`), REPORT.md findings F9 and F10.
 - REPORT.md finding F11 (puncc APS and RAPS sets are capped at the number of test points
-  per call), found in code review, with a standalone repro.
-- `docs/upstream/`: issue texts for F1, F9, F10 and F11, re-checked against MAPIE 1.6.0
-  and puncc 0.9.3 (not filed).
+  per call), found in code review, with a standalone repro. Already reported upstream in
+  puncc pull request #97 (open).
+- `docs/upstream/`: issue texts for F1, F9 and F10, re-checked against MAPIE 1.6.0 and
+  puncc 0.9.3 (not filed), and a supporting comment for puncc #97 (F11).
 - `scripts/compare_runs.py`: compares two runs unit by unit (raw results) and cell by
   cell (statuses), for example one library at two versions.
 - `scripts/mapie_versions.sh`: the default study's MAPIE rows under MAPIE 1.5.0 and

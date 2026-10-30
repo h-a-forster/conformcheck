@@ -99,8 +99,9 @@ holds round 2.
 - 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases. The F1, F9 and
   F10 repros give the same output; F1 and F9 also reproduce on MAPIE 1.5.0. New finding
   F11 (puncc APS/RAPS set size capped at the number of test points per call), found in
-  code review and outside the study grid, with a manual repro. Issue texts for F1, F9,
-  F10 and F11 are in `docs/upstream/` (not filed).
+  code review and outside the study grid, with a manual repro; already reported upstream
+  in puncc PR #97 (open). Issue texts for F1, F9 and F10 and a supporting comment for
+  puncc #97 are in `docs/upstream/` (not filed).
 - MAPIE 1.5.0 vs 1.6.0 study: run 2026-10-30 (`scripts/mapie_versions.sh`, 25 + 16 min,
   4 workers; raw runs in `runs/mapie-versions-default/`, gitignored). Small outputs in
   `docs/results/mapie-versions/`, write-up at the end of REPORT section 4. 1.6.0
