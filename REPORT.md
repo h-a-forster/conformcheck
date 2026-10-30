@@ -381,10 +381,11 @@ where `k' = ceil((n+1)(1 - alpha/2)) = n` is feasible. In this grid that is 5 ce
 n = 9 with alpha = 0.2, and n = 19 with alpha = 0.1, on the DGPs where those sizes run.
 
 **Related: `allow_infinite_bounds=True`.** `SplitConformalRegressor.predict_interval`
-documents this option as allowing infinite bounds. With it set, the split regressor
-still raises where k > n instead of returning (-inf, inf). The message says to "set
-unbounded=True", which is an internal argument the public option does not forward to.
-This is REFUSED, not unsafe. `CrossConformalRegressor` honours the option.
+documents this option as allowing infinite bounds. With it set, the MAPIE 1.6.0 split
+regressor still raises where k > n instead of returning (-inf, inf). The message says to
+"set unbounded=True", which is an internal argument the public option does not forward
+to. This is REFUSED, not unsafe. (MAPIE 1.5.0 instead returns finite, under-covering
+intervals there: FAIL, see "MAPIE 1.5.0 vs 1.6.0" below.) `CrossConformalRegressor` honours the option.
 
 Repros:
 
@@ -589,7 +590,9 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
   valid. The lowest coverage was 0.828 against 1 (split, `reg_gauss`, n = 5,
   alpha = 0.1); jackknife+ covered 0.902 at n = 9, alpha = 0.05. MAPIE 1.6.0 returns
   infinite bounds for CV+ and jackknife+ (PASS) and raises for the split regressor
-  (REFUSED, F4). These four rows are the ones 1.6.0 no longer flags.
+  (REFUSED, F4). These four rows are the ones 1.6.0 no longer flags. The change comes
+  from a rewrite of `_compute_regression_quantile` in `mapie/utils.py`, which the 1.6.0
+  release notes do not mention.
 - **One order statistic too high (87 cells, CONSERVATIVE under 1.5.0).** LAC (26 cells,
   bracket +1), symmetric and asymmetric CQR (26 and 17, rank +1 in 199-200 of 200 draws),
   and randomized APS and RAPS (14 and 4, Holm-rejected) over-covered; all PASS under
@@ -598,7 +601,8 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
   not record interval widths; a rank +1 means every interval used the next larger score,
   so 1.5.0's sets and intervals were one order statistic wider.
 - **Unchanged:** F1 (one cell is LAW_MISMATCH under 1.5.0, coverage 0.774 against
-  0.800, and FAIL under 1.6.0 at 0.750), F4, F5, F7 and F9, and the documented
+  0.800, and FAIL under 1.6.0 at 0.750), F4 apart from its `allow_infinite_bounds`
+  paragraph (FAIL under 1.5.0, first bullet), F5, F7 and F9, and the documented
   conservatism of `include_last_label=True`.
 
 ## 5. Pre-registered hypotheses
