@@ -1,6 +1,6 @@
 # conformcheck 0.2.0
 
-Released 2026-10-30. Install from git (conformcheck is not on PyPI):
+Install from git (conformcheck is not on PyPI):
 
 ```sh
 uv pip install "conformcheck @ git+https://github.com/h-a-forster/conformcheck@v0.2.0"
@@ -16,6 +16,11 @@ uv pip install "conformcheck @ git+https://github.com/h-a-forster/conformcheck@v
 - **An informative classifier** (`cls_gauss_inf`, the Bayes posterior) next to the
   anti-informative `cls_gauss`, so model-dependent effects can be told apart from the
   laws.
+- **Batch-size invariance check** (`conformcheck.batch`), opt-in with the study key
+  `batch_sizes`: the test points are predicted again in chunks and in shuffled order and
+  must get the same sets and intervals. The built-in `batch` study runs it in about 4
+  minutes (`docs/results/batch/`). Studies without the key keep their fingerprints, unit
+  ids and report columns.
 
 ## Results (default study, round 2)
 
@@ -30,6 +35,9 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
   grid), which was already reported upstream in
   [puncc#97](https://github.com/deel-ai/puncc/pull/97). F1 (MAPIE APS
   `include_last_label=False`) now also under-covers with the informative classifier.
+- Batch-size check: F11 reproduces in all 20 puncc APS and RAPS cells, and it found
+  candidate F12 (puncc CQR raises for a single test point); 25 of 235 compared cells are
+  not invariant, all in puncc.
 - MAPIE 1.5.0 vs 1.6.0: under 1.5.0 all 13 MAPIE rows are flagged at n <= 100 (9 under
   1.6.0). 1.5.0 returns finite intervals where `k > n` (CV+, jackknife+, split with
   `allow_infinite_bounds=True`; coverage down to 0.828 against 1) and uses one order
@@ -38,8 +46,8 @@ MAPIE 1.6.0, crepes 0.9.1, puncc 0.9.3, TorchCP 1.2.1; R = 200 draws × 500 test
 
 Details: [REPORT.md](../REPORT.md). Issue texts for F1, F9 and F10, re-checked on
 2026-10-30 against MAPIE 1.6.0 and puncc 0.9.3 (still the latest releases), are in
-[docs/upstream](upstream/README.md); none has been filed. For F11 that folder has a
-supporting comment for puncc#97 instead.
+[docs/upstream](upstream/README.md), with an issue text for F12 (checked on 2026-11-06);
+none has been filed. For F11 that folder has a supporting comment for puncc#97 instead.
 
 ## Fixes
 
@@ -49,6 +57,11 @@ supporting comment for puncc#97 instead.
 - Coverage intervals use the empirical spread of the counts and are clipped to [0, 1].
 - Study files are validated on load; `run` refuses to start without the libraries it
   needs unless `--allow-missing` is given.
+- REPORT.md: four rounded figures corrected against `cells.csv` (F1 digits range and
+  randomized cell, F3 class-conditional coverage, F9 interval end); no status changed.
+- The sdist now ships REPORT.md and AGENTS.md, which the README links to.
+- Documented-usage tests now cover 27 of the 37 adapters, including puncc CQR, APS and
+  deterministic RAPS (the rows of F11 and F12), also on a single test point.
 
 The full list is in [CHANGELOG.md](../CHANGELOG.md).
 

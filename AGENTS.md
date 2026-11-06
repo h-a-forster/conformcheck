@@ -30,8 +30,7 @@ standalone repros, plus a pytest plugin.
 - Scratch work goes in `tmp/` (gitignored). Large or raw outputs stay in `runs/` or
   `data/` (gitignored); only small derived results go in `docs/results/`.
 - Do not change `[tool.uv] override-dependencies` without reading DESIGN section 5.
-- Commits end with the `Co-Authored-By` trailer used in the history. Do not push or
-  create remotes without the owner's go-ahead.
+- Do not push or create remotes without the owner's go-ahead.
 - Statistical honesty: report sizes, seeds and versions; give intervals; use Holm/BY
   across cells. A library "bug" needs a standalone repro and an adapter cross-check
   (DESIGN 8.2) before it is called one.
@@ -67,6 +66,7 @@ tests/              laws, stats, reference, adapters, pipeline, testing API, con
 REPORT.md           default study findings; docs/results/default/ holds its outputs
 docs/DESIGN.md      the spec
 docs/upstream/      issue texts for the libraries (not filed)
+backlog.md          open work
 ```
 
 ## How to test
@@ -93,16 +93,16 @@ Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
 ## Status and next steps
 
-Status (2026-10-30): **0.2.0 prepared on branch `polish-2026-10-30` (CHANGELOG, release
+Status (2026-11-06): **0.2.0 prepared on branch `polish-2026-10-30` (CHANGELOG, release
 notes in `docs/release-notes-0.2.0.md`); not tagged.** The repository is public; `main`
-holds round 2.
+holds round 2. Open work is in `backlog.md`.
 
 - 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases. The F1, F9 and
   F10 repros give the same output; F1 and F9 also reproduce on MAPIE 1.5.0. New finding
   F11 (puncc APS/RAPS set size capped at the number of test points per call), found in
   code review and outside the study grid, with a manual repro; already reported upstream
-  in puncc PR #97 (open). Issue texts for F1, F9 and F10 and a supporting comment for
-  puncc #97 are in `docs/upstream/` (not filed).
+  in puncc PR #97 (open). Issue texts for F1, F9, F10 and F12 and a supporting comment
+  for puncc #97 are in `docs/upstream/` (not filed).
 - Batch-size invariance check (2026-10-30): `batch_sizes` in a study TOML turns it on
   (`batch.py`; runner records a per-mode `batch` dict per alpha; report adds a FAIL, a
   `matrix.md` section and `batch*` csv columns; a separate Holm family for randomized
@@ -182,15 +182,3 @@ Notes for whoever continues:
 - `conformcheck repro`: raises-type repros try seeds 0-49 and are split by exception
   message. An unexpected crash exits 2, never 1. Hand-written repros are prefixed
   `manual__`. Cells flagged only by the batch check get no generated repro.
-
-Open items (not done):
-
-- ACI / EnbPI (time series): not started.
-- The `full` study (R = 2000, m = 1000; hours; resumable).
-- CV+ `lower` cells with K not dividing n use an extrapolated bound (labelled).
-- puncc PASS cells were not re-checked under `numpy<2` (only its findings were).
-- First CI run (CI now also runs on pushes to `main`).
-- Issue texts for F2-F8; filing any of them is the owner's decision.
-- F12 (candidate): no upstream issue text yet; filing is the owner's decision.
-- The batch-size check has not run on the default grid (other DGPs, n, toy data), and
-  `testing.check_*` does not offer it to library authors yet.

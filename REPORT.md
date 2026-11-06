@@ -3,7 +3,9 @@
 This report covers the `default` study as of round 2 (2026-10-24). It runs four Python
 conformal-prediction libraries (37 library-method rows) and a set of reference and mutant
 rows through the exact finite-sample laws of split conformal prediction. All numbers
-below come from [docs/results/default](docs/results/default). Each finding has a
+below come from [docs/results/default](docs/results/default), except where a section
+names another source (the batch-size check and the MAPIE version comparison at the end
+of section 4, the repros of F11 and F12). Each finding has a
 standalone repro script in [docs/results/default/repros](docs/results/default/repros).
 The scripts depend only on numpy, scikit-learn and the library concerned, and exit 1
 while the problem reproduces.
@@ -103,7 +105,7 @@ copied from [matrix.md](docs/results/default/matrix.md).
 
 | Row | Small n | Large n | What |
 |---|---|---|---|
-| `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.52-0.57 on `cls_gauss`, 0.74-0.87 on `cls_gauss_inf` (FAIL), 0.96-0.97 on digits (CONSERVATIVE) (F1); also F4 and F7 |
+| `mapie/aps/include_last_label=False` | ERROR | FAIL | model-dependent coverage: 0.52-0.57 on `cls_gauss`, 0.74-0.87 on `cls_gauss_inf` (FAIL), 0.96-0.98 on digits (CONSERVATIVE) (F1); also F4 and F7 |
 | `mapie/aps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.971 vs 0.900 at n = 1000); also crashes (F7) and refuses feasible levels (F4), which are not documented |
 | `mapie/aps/include_last_label=randomized` | ERROR | OVER_REFUSED | matches the exact law where it runs (not rejected; see the uniform-reuse caveat in section 7); crashes when a class is missing from a small calibration set (F7); F4 |
 | `mapie/raps/include_last_label=True` | ERROR | CONSERVATIVE | conservative, as documented (0.961 vs 0.900 at n = 1000 on `cls_gauss_inf`); raises at n <= 20 with 4 classes and refuses feasible levels (F9) |
@@ -274,7 +276,7 @@ second, third and last in 70.8%, 21.3%, 5.4% and 2.5% of draws.
   `cls_gauss_inf`, and 0.992 against 0.900 at n = 99 on digits. MAPIE documents this.
 - `"randomized"` matches the exact law wherever it runs, on all three datasets: 0.901
   [0.899, 0.904] against 0.900 at n = 999 on `cls_gauss`, 0.900 [0.898, 0.903] at
-  n = 1000 on `cls_gauss_inf`, and 0.901 [0.896, 0.905] at n = 99 on digits.
+  n = 1000 on `cls_gauss_inf`, and 0.900 [0.896, 0.905] at n = 99 on digits.
 
 Repros: `mapie__aps__include_last_label-False__coverage.py` and
 `mapie__aps__include_last_label-True__coverage.py` (on `cls_gauss`).
@@ -326,7 +328,7 @@ the same integer boundaries. Examples on the synthetic data:
 |---|---|---|---|---|
 | `crepes/lac/unsmoothed` | 19 | 0.1 | 0.900 | 0.947 [0.940, 0.954] |
 | `crepes/lac/unsmoothed` | 9 | 0.2 | 0.800 | 0.894 [0.881, 0.908] |
-| `crepes/class_conditional/unsmoothed` (n per class) | 19 | 0.1 | 0.900 | 0.950 [0.946, 0.953] |
+| `crepes/class_conditional/unsmoothed` (n per class) | 19 | 0.1 | 0.900 | 0.949 [0.946, 0.953] |
 
 On the digits data at n = 19, alpha = 0.1, `crepes/lac/unsmoothed` gives 0.948.
 
@@ -481,7 +483,7 @@ Consequences seen in the study:
 - **Effective calibration size.** In every repetition MAPIE calibrated on exactly
   `n - ceil(0.1 n)` points (89 at n = 99, 900 at n = 1000; column `effective_n` in
   `cells.csv`). The randomized rule matches the exact law at that size in all 26 cells
-  where it runs, on all three datasets (for example 0.9005 [0.8982, 0.9028] against
+  where it runs, on all three datasets (for example 0.9005 [0.8982, 0.9029] against
   0.9001 at n = 1000 on `cls_gauss_inf`). Hypothesis 6 is discussed in section 5.
 - **It raises at small n.** The stratified hold-out needs at least one point per class
   and at least two points per class overall. With 4 classes it raises in every
@@ -590,7 +592,7 @@ models) and reproduces under numpy 2.5.4 and under `numpy<2` (numpy 1.26.4, Pyth
 3.12; `repros/puncc_numpy1_recheck.txt`). A search of puncc's issues and pull requests
 (terms "Y_pred", "squeeze", "single", "CQR") on 2026-10-30 found no report of it. It is
 labelled a candidate because the mechanism was read off the source and the repro, not
-discussed with the maintainers; no issue text has been written.
+discussed with the maintainers. `docs/upstream/` has an issue text (not filed).
 
 ### Batch-size invariance check (run 2026-10-30)
 
@@ -619,8 +621,9 @@ not used here.
   randomized. One point at a time, the deterministic sets differ from the full batch in
   every point of every draw (400 of 400 in each of the 10 cells), with mean set size
   2.98 to 3.00 labels smaller and coverage 0.87 to 0.89 lower. Chunks of 3 (fewer points
-  than the 4 classes) cut the mean size by 1.08 to 1.10. Chunks of 7 and the shuffled call give identical sets: every chunk of 7 holds at
-  least 4 points. The randomized rows show the same pattern (size 2.54 to 3.00 smaller
+  than the 4 classes) cut the mean size by 1.08 to 1.10. Chunks of 7 and the shuffled
+  call give identical sets: every chunk of 7 holds at least 4 points. The randomized
+  rows show the same pattern (size 2.54 to 3.00 smaller
   one point at a time; Holm p at most 5.2e-14), while chunks of 7 and the shuffled call
   moved the mean set size by at most 0.08.
 - **New: F12.** puncc CQR raises in 20 of 20 draws when predicting one point at a time,
@@ -630,7 +633,8 @@ not used here.
   cells was rejected (the smallest Holm-adjusted p is 0.35, a reference APS cell).
 - **Not compared:** cells where the full batch and every mode refuse or raise. MAPIE's
   split and classification rows had an output in 2 to 5 of their 7 cells (refusals at
-  n = 9 and at the edge levels, F4 and F9); puncc jackknife+ in none (it crashes, F6); puncc CV+ in 2 of 4.
+  n = 9 and at the edge levels, F4 and F9); puncc jackknife+ in none (it crashes, F6);
+  puncc CV+ in 2 of 4.
 
 With 20 draws the randomized test resolves a change in mean set size of a few tenths of
 a label, not a small one; the deterministic comparison has no such limit.
@@ -689,16 +693,17 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
 ## 6. Checks against adapter mistakes
 
 - **Documented usage.** `tests/test_adapters.py` compares the adapter's output with the
-  library's documented usage, written out by hand, on the same data. This covers 23 of
+  library's documented usage, written out by hand, on the same data. This covers 27 of
   the 37 adapters, including every adapter behind a finding:
   - MAPIE: split regression (both modes), LAC, APS (all three settings), RAPS (both
     settings), symmetric and asymmetric CQR, CV+ (K = 5, 10);
   - crepes: split regression, unsmoothed LAC, unsmoothed class-conditional;
-  - puncc: split regression, CV+ (K = 5, 10), jackknife+ (the documented call raises the
-    same `TypeError`), randomized RAPS;
+  - puncc: split regression, CQR, CV+ (K = 5, 10), jackknife+ (the documented call raises
+    the same `TypeError`), APS and RAPS (both settings). CQR and APS/RAPS are also compared
+    on a single test point (F11, F12);
   - TorchCP: LAC, split regression, CQR.
 
-  The other 14 adapters are checked for shapes, determinism and, for the cross methods,
+  The other 10 adapters are checked for shapes, determinism and, for the cross methods,
   the order statistic with a constant model. A hand-written call follows the same
   documented pattern as the adapter, so this check shows that the adapter adds no
   slicing, seeding or label-mapping mistake; it is not an independent check of the
@@ -713,7 +718,8 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
   object. F10 compares two public puncc functions with each other on fixed inputs, so it
   does not depend on how the adapter calls `RAPS`.
 - **Determinism.** The 205 units re-run in round 2 reproduced their v0.1 covered counts
-  exactly, so one run directory can hold v0.1 and round-2 units.
+  exactly, so one run directory can hold v0.1 and round-2 units. A rerun of the `batch`
+  study on 2026-11-06 wrote the same results in all 86 units, randomized rows included.
 - **Bracketing bug (round 2).** `diagnostics.bracket_rank` put the lower end of the
   bracket at `#{s <= a}` instead of `#{s < a} + 1` (with `a` the largest included test
   score). It could never report a positive offset: in v0.1 the `k_plus_1` LAC mutant had

@@ -179,8 +179,9 @@ minutes; `--study full` (R=2000, m=1000) takes hours.
 ## Validating the oracle
 
 - `uv run pytest` runs the test suite, including exact reference values for the laws,
-  null-calibration and power tests of the statistical layer, and checks of 23 adapters
-  (every adapter behind a finding) against each library's documented usage. `uv run pytest -m "not slow"` is what CI runs.
+  null-calibration and power tests of the statistical layer, and checks of 27 adapters
+  (every adapter behind a finding) against each library's documented usage.
+  `uv run pytest -m "not slow"` is what CI runs.
 - In every study the reference rows must pass and the mutant rows must be caught; the
   report prints both (see "Oracle controls" in [REPORT.md](REPORT.md)).
 - Each finding has a repro under [docs/results/default/repros](docs/results/default/repros)
