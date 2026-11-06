@@ -10,6 +10,7 @@ or trivial; outputs are deterministic under a fixed seed.
 
 from __future__ import annotations
 
+import dataclasses
 import warnings
 from fractions import Fraction
 
@@ -307,13 +308,10 @@ def test_crepes_class_conditional_matches_documented_pattern() -> None:
     assert np.array_equal(got, np.asarray(sets).astype(bool))
 
 
-def test_puncc_cv_plus_and_raps_match_documented_pattern() -> None:
+def test_puncc_cv_plus_matches_documented_pattern() -> None:
     pytest.importorskip("deel.puncc")
     from deel.puncc.api.prediction import BasePredictor
-    from deel.puncc.classification import RAPS
     from deel.puncc.regression import CVPlus
-
-    from conformcheck.adapters.puncc import _proba_predictor
 
     for k in (5, 10):
         ci = _cross_input(k)
@@ -332,15 +330,51 @@ def test_puncc_cv_plus_and_raps_match_documented_pattern() -> None:
         cp.predict(ci.x_test, alpha=0.1)
     assert "has no len" in out.message
 
+
+def test_puncc_cqr_matches_documented_pattern_and_raises_for_one_point() -> None:
+    pytest.importorskip("deel.puncc")
+    from deel.puncc.api.prediction import DualPredictor
+    from deel.puncc.regression import CQR
+
+    inp, _ = _reg_input()
+    lo, hi, _ = inp.quantile_models
+    cp = CQR(DualPredictor([lo, hi], is_trained=[True, True]), train=False)
+    cp.fit(X_calib=inp.x_cal, y_calib=inp.y_cal)
+    _, y_lo, y_hi = cp.predict(inp.x_test, alpha=0.1)
+    out = get_adapter("puncc/cqr/default").run(inp)[A10]
+    assert np.array_equal(out.intervals, np.column_stack([y_lo, y_hi]))
+    # one test point: the documented call raises as the adapter does (F12)
+    one = dataclasses.replace(inp, x_test=inp.x_test[:1])
+    with pytest.raises(RuntimeError, match="Y_pred"):
+        cp.predict(one.x_test, alpha=0.1)
+    out = get_adapter("puncc/cqr/default").run(one)[A10]
+    assert out.status == "error" and "Y_pred" in out.message
+
+
+@pytest.mark.parametrize(
+    ("key", "method", "kwargs"),
+    [
+        ("puncc/aps/rand=False", "APS", {"rand": False}),
+        ("puncc/aps/rand=True", "APS", {"rand": True}),
+        ("puncc/raps/rand=False", "RAPS", {"lambd": 0.1, "k_reg": 1, "rand": False}),
+        ("puncc/raps/rand=True", "RAPS", {"lambd": 0.1, "k_reg": 1, "rand": True}),
+    ],
+)
+def test_puncc_aps_raps_match_documented_pattern(key: str, method: str, kwargs: dict) -> None:
+    pc = pytest.importorskip("deel.puncc.classification")
+    from conformcheck.adapters.puncc import _proba_predictor
+
     cl = _cls_input()
-    np.random.seed(cl.seed)  # puncc randomizes through the global numpy state
-    rc = RAPS(_proba_predictor(cl.model), train=False, lambd=0.1, k_reg=1, rand=True)
-    rc.fit(X_calib=cl.x_cal, y_calib=cl.y_cal)
-    _, sets = rc.predict(cl.x_test, alpha=0.1)
-    expected = np.zeros((len(sets), 4), dtype=bool)
-    for i, s in enumerate(sets):
-        expected[i, list(s)] = True
-    assert np.array_equal(get_adapter("puncc/raps/rand=True").run(cl)[A10].sets, expected)
+    # the full batch, and one test point, where the set size is capped (F11)
+    for inp in (cl, dataclasses.replace(cl, x_test=cl.x_test[:1], proba_test=cl.proba_test[:1])):
+        np.random.seed(inp.seed)  # puncc randomizes through the global numpy state
+        cp = getattr(pc, method)(_proba_predictor(inp.model), train=False, **kwargs)
+        cp.fit(X_calib=inp.x_cal, y_calib=inp.y_cal)
+        _, sets = cp.predict(inp.x_test, alpha=0.1)
+        expected = np.zeros((len(sets), 4), dtype=bool)
+        for i, s in enumerate(sets):
+            expected[i, list(s)] = True
+        assert np.array_equal(get_adapter(key).run(inp)[A10].sets, expected)
 
 
 @pytest.mark.parametrize("score", ["abs", "cqr"])

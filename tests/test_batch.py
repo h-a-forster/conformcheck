@@ -14,8 +14,9 @@ import numpy as np
 import pytest
 
 from conformcheck import adapters, batch, study
-from conformcheck.adapters.base import MethodSpec, RegressionInput
+from conformcheck.adapters.base import AlphaOutput, MethodSpec, RegressionInput
 from conformcheck.adapters.reference import RefClassifier, RefSplitAbs
+from conformcheck.models import FixedRegressor
 from conformcheck.report import adjust, build_cells, write_report
 from conformcheck.repro import clusters
 from conformcheck.runner import run_study, study_records
@@ -74,7 +75,37 @@ class Positional(RefSplitAbs):
         return outs
 
 
-FAKES = (Capped("aps", "deterministic"), Capped("aps", "randomized"), Positional())
+class RaisesAlone(RefSplitAbs):
+    """Reference intervals, but a call with one test point raises (F12)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.spec = MethodSpec("capped", "split_abs", "raises_alone", "regression")
+
+    def run(self, data: RegressionInput):  # type: ignore[no-untyped-def, override]
+        if len(data.x_test) == 1:
+            raise RuntimeError("needs two test points")
+        return super().run(data)
+
+
+class Seeds(RefClassifier):
+    """Reference sets; remembers the library seed of every call."""
+
+    def __init__(self) -> None:
+        super().__init__("lac")
+        self.seen: list[int] = []
+
+    def run(self, data):  # type: ignore[no-untyped-def]
+        self.seen.append(data.seed)
+        return super().run(data)
+
+
+FAKES = (
+    Capped("aps", "deterministic"),
+    Capped("aps", "randomized"),
+    Positional(),
+    RaisesAlone(),
+)
 
 
 @pytest.fixture
@@ -115,6 +146,10 @@ def test_batch_check_flags_batch_dependent_rows(with_fakes: None, tmp_path: Path
     # a shuffled call exposes position dependence that consecutive chunks of 1 also show
     for c in by_row["capped/split_abs/positional"]:
         assert "shuffled" in c.batch_reason and "size=1" in c.batch_reason
+    # a crash of the one-point calls alone is a difference, chunks of 5 still match
+    for c in by_row["capped/split_abs/raises_alone"]:
+        assert c.batch_status == "FAIL" and c.batch["size=1"]["status_mismatch"] == s.reps
+        assert "needs two test points" in c.batch_reason and "size=5" not in c.batch_reason
     # coverage of the full batch is untouched, so the row passes everything else and gets
     # no (misleading) generated coverage repro
     assert all(c.det_status == "PASS" for c in by_row["capped/aps/deterministic"])
@@ -162,7 +197,52 @@ def test_chunks_reassemble_in_test_point_order() -> None:
         got = batch.predict_in_chunks(ad, inp, chunks, randomized=False, mode=i + 1)
         np.testing.assert_array_equal(got[Fraction(1, 10)].sets, full.sets)
 
+    # a deterministic row keeps the repetition's seed (same CV+ folds in every chunk); a
+    # randomized row gets a new seed per chunk and per mode (no shared first uniform)
+    spy = Seeds()
+    chunks = ms[0][1]
+    batch.predict_in_chunks(spy, inp, chunks, randomized=False, mode=1)
+    assert set(spy.seen) == {inp.seed}
+    spy.seen.clear()
+    batch.predict_in_chunks(spy, inp, chunks, randomized=True, mode=1)
+    batch.predict_in_chunks(spy, inp, chunks, randomized=True, mode=2)
+    assert len(set(spy.seen)) == 2 * m and inp.seed not in spy.seen
+
+
+def test_a_failing_later_chunk_decides_the_status() -> None:
+    class FailsOnShortChunk(RefSplitAbs):
+        def run(self, data: RegressionInput):  # type: ignore[no-untyped-def, override]
+            if len(data.x_test) < 2:
+                return {a: AlphaOutput(status="refused", message="short") for a in data.alphas}
+            return super().run(data)
+
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(3, 2))
+    a = Fraction(1, 5)
+    inp = RegressionInput(x, rng.normal(size=3), x, [a], FixedRegressor())
+    chunks = [np.arange(2), np.arange(2, 3)]
+    got = batch.predict_in_chunks(FailsOnShortChunk(), inp, chunks, randomized=False, mode=1)
+    assert got[a].status == "refused" and got[a].message == "short"
+
+
+def test_infinite_endpoints_compare_equal_only_with_the_same_sign() -> None:
+    y = np.array([0.5, 0.5])
+    full = AlphaOutput(intervals=np.array([[-np.inf, np.inf], [0.0, 1.0]]))
+    same = batch.compare(full, AlphaOutput(intervals=full.intervals.copy()), y)
+    assert same is not None and same["points"] == 0 and same["max_diff"] == 0.0
+    finite = np.array([[-1.0, 1.0], [0.0, 1.0]])
+    other = batch.compare(full, AlphaOutput(intervals=finite), y)
+    assert other is not None and other["points"] == 1 and other["max_diff"] == np.inf
+
 
 def test_constant_differences_give_exact_pvalues() -> None:
     assert batch._zero_mean_pvalue([-1.1] * 20) == 0.0  # np.std of these is 2e-16
     assert batch._zero_mean_pvalue([0.0] * 20) == 1.0
+
+
+def test_paired_pvalue_corrects_for_every_test_of_every_mode() -> None:
+    v = [0.1, -0.05, 0.2, 0.15, 0.05, 0.1, -0.1, 0.25, 0.1, 0.0]
+    one = batch._zero_mean_pvalue(v)
+    assert 0 < one < 0.25
+    rec = {"size=1": {"size_diff": v, "cover_diff": [0.0] * 10}, "shuffled": {"cover_diff": [0.0]}}
+    assert batch.paired_pvalue(rec) == pytest.approx(3 * one)

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import importlib
+import re
+import tomllib
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -19,6 +22,7 @@ MODULES = [
     "conformcheck.data",
     "conformcheck.models",
     "conformcheck.diagnostics",
+    "conformcheck.batch",
     "conformcheck.study",
     "conformcheck.runner",
     "conformcheck.report",
@@ -51,6 +55,16 @@ def test_libraries_command(capsys: pytest.CaptureFixture[str]) -> None:
     out = capsys.readouterr().out
     for name in ("mapie", "crepes", "puncc", "torchcp"):
         assert name in out
+
+
+def test_sdist_ships_what_the_readme_links_to() -> None:
+    root = Path(__file__).parents[1]
+    config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    shipped = [*config["tool"]["hatch"]["build"]["targets"]["sdist"]["include"], "pyproject.toml"]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    links = re.findall(r"\]\((?!https?:)([^)#]+)", readme)
+    assert links
+    assert not [u for u in links if not any(u == s or u.startswith(f"{s}/") for s in shipped)]
 
 
 def test_plugin_fixture(conformcheck_settings: ConformcheckSettings) -> None:
