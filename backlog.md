@@ -24,3 +24,4 @@
 - puncc PASS cells are re-checked under `numpy<2`, not only its findings.
 - CV+ `lower` cells with K not dividing n use a proven bound, not the labelled extrapolation.
 - Issue texts exist for F2-F8.
+- `holm` in `stats.py` leaves NaN as NaN and out of m, as in lpbench and certkkt, in the release after 0.2.0.
