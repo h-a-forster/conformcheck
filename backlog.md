@@ -6,7 +6,6 @@
 
 - `polish-2026-10-30` is merged through a PR with a merge commit, after the first CI run ever is green.
 - `v0.2.0` is tagged, with the CHANGELOG's `[Unreleased]` block folded into `[0.2.0]` and its date set to the tag date.
-- GitHub private vulnerability reporting is on, as `SECURITY.md` promises (it is off).
 - F1, F9, F10 and F12 are filed upstream or dropped, and puncc#97 has its supporting comment or not (`docs/upstream/`).
 - Decided whether the 14 `Co-Authored-By` trailers on `polish-2026-10-30` stay (a rewrite must happen before the merge; `main` has 15 more).
 
