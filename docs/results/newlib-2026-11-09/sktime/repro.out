@@ -1,0 +1,2 @@
+random walk h=1: coverage 0.970 [0.944,0.986] at 0.90; half-width 2.305; sd ratio check 1.645*sqrt(h)=1.645, 1.645*sqrt(h+1)=2.326
+random walk h=3: coverage 0.930 [0.895,0.956] at 0.90; half-width 3.231; sd ratio check 1.645*sqrt(h)=2.849, 1.645*sqrt(h+1)=3.290

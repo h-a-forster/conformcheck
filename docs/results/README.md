@@ -49,3 +49,9 @@ The default study's MAPIE rows (and the reference rows) under MAPIE 1.5.0 and 1.
 | `reproduce-committed.md` | The fresh 1.6.0 run against `default/` (identical raw results) |
 | `1.5.0/`, `1.6.0/` | `run.json` and `summary.md` of each run |
 | `1.5.0/units.jsonl.gz` | The 1.5.0 per-unit records (the 1.6.0 MAPIE records equal those in `default/`) |
+
+## newlib-2026-11-09/
+
+statsforecast, sktime and darts through `conformcheck.testing` with a fixed zero forecaster
+(run 2026-11-09; REPORT section 4, "Time-series wrappers"). Its own
+[README](newlib-2026-11-09/README.md) has the design, results, file list and how to rerun.

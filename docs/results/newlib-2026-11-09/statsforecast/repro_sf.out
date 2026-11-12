@@ -1,0 +1,11 @@
+statsforecast 2.1.1
+n_windows=2   conformal_distribution  80%: 0.5986 [0.5918,0.6054]  90%: 0.6366 [0.6299,0.6433]
+n_windows=2   conformal_error         80%: 0.6243 [0.6176,0.6311]  90%: 0.6486 [0.6420,0.6553]
+n_windows=5   conformal_distribution  80%: 0.6992 [0.6928,0.7056]  90%: 0.7847 [0.7790,0.7904]
+n_windows=5   conformal_error         80%: 0.7215 [0.7152,0.7277]  90%: 0.7925 [0.7869,0.7982]
+n_windows=10  conformal_distribution  80%: 0.7430 [0.7369,0.7491]  90%: 0.8292 [0.8239,0.8344]
+n_windows=10  conformal_error         80%: 0.7532 [0.7472,0.7592]  90%: 0.8363 [0.8310,0.8414]
+n_windows=20  conformal_distribution  80%: 0.7727 [0.7668,0.7785]  90%: 0.8622 [0.8574,0.8670]
+n_windows=20  conformal_error         80%: 0.7773 [0.7715,0.7831]  90%: 0.8651 [0.8603,0.8698]
+n_windows=50  conformal_distribution  80%: 0.7917 [0.7860,0.7973]  90%: 0.8847 [0.8802,0.8891]
+n_windows=50  conformal_error         80%: 0.7933 [0.7877,0.7989]  90%: 0.8855 [0.8810,0.8899]

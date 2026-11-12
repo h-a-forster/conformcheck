@@ -4,8 +4,8 @@ This report covers the `default` study as of round 2 (2026-10-24). It runs four 
 conformal-prediction libraries (37 library-method rows) and a set of reference and mutant
 rows through the exact finite-sample laws of split conformal prediction. All numbers
 below come from [docs/results/default](docs/results/default), except where a section
-names another source (the batch-size check and the MAPIE version comparison at the end
-of section 4, the repros of F11 and F12). Each finding has a
+names another source (the batch-size check, the MAPIE version comparison and the
+time-series wrappers at the end of section 4, the repros of F11 and F12). Each finding has a
 standalone repro script in [docs/results/default/repros](docs/results/default/repros).
 The scripts depend only on numpy, scikit-learn and the library concerned, and exit 1
 while the problem reproduces.
@@ -592,7 +592,8 @@ models) and reproduces under numpy 2.5.4 and under `numpy<2` (numpy 1.26.4, Pyth
 3.12; `repros/puncc_numpy1_recheck.txt`). A search of puncc's issues and pull requests
 (terms "Y_pred", "squeeze", "single", "CQR") on 2026-10-30 found no report of it. It is
 labelled a candidate because the mechanism was read off the source and the repro, not
-discussed with the maintainers. `docs/upstream/` has an issue text (not filed).
+discussed with the maintainers. Filed as puncc#100 on 2026-11-07
+([docs/upstream.md](docs/upstream.md)).
 
 ### Batch-size invariance check (run 2026-10-30)
 
@@ -674,6 +675,28 @@ under 1.6.0** (results in `docs/results/mapie-versions/`):
   0.800, and FAIL under 1.6.0 at 0.750), F4 apart from its `allow_infinite_bounds`
   paragraph (FAIL under 1.5.0, first bullet), F5, F7 and F9, and the documented
   conservatism of `include_last_label=True`.
+
+### Time-series wrappers: statsforecast, sktime, darts (run 2026-11-09)
+
+Outside the default grid, `conformcheck.testing.check_split_regressor` was run through
+small adapters for three forecasting libraries. Each adapter gives the library the
+calibration residuals as an i.i.d. series and a forecaster that always returns 0, so the
+exact BetaBinomial law applies; this tests the calibration step only, not serial
+dependence. Scripts, cell records and per-cell tables are in
+[docs/results/newlib-2026-11-09](docs/results/newlib-2026-11-09/README.md). In every
+library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells were caught.
+
+- **statsforecast 2.1.1 under-covers at small n.** 32 of 52 library cells rejected (Holm
+  over 76), plus all 14 cells with k > n; n = 9, alpha = 0.1: 0.821 against 0.900. The
+  quantile has no (n + 1) correction; the fix (PR #1246) is on `main` but in no release.
+  With the tutorial's `n_windows=2`, 20,000 i.i.d. series cover 0.637 at 90%. Filed as
+  statsforecast#1349, closed by a maintainer on 2026-11-12 without a change.
+- **sktime 1.3.0**: three known open defects reproduce on the release (#10757, #10758,
+  #10766), including `empirical_residual` covering 0.056 at 90%.
+- **darts 0.48.1 is exact where k <= n** (0 of 34 cells rejected, 0 of 3,410 rank-scan
+  pairs off). Where k > n it returns a finite interval covering n/(n + 1) without an
+  error, a low-severity defect by the rule applied to MAPIE 1.5.0; darts chose it in
+  PR #3227.
 
 ## 5. Pre-registered hypotheses
 

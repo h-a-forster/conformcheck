@@ -1,0 +1,11 @@
+rank scan symmetric: 2277 pairs, 0 off from min(k,n), 35s {}
+rank scan asymmetric: 1133 pairs, 0 off {}
+asymmetric coverage, 200 draws x 500 test points
+ n=19 a=0.2 k'=18 cov 0.7950 +- 0.0136 exact 0.8000
+ n=39 a=0.1 k'=38 cov 0.9058 +- 0.0069 exact 0.9000
+ n=99 a=0.1 k'=95 cov 0.8994 +- 0.0047 exact 0.9000
+ n=199 a=0.05 k'=195 cov 0.9496 +- 0.0023 exact 0.9500
+k>n cap (symmetric), 2000 draws x 200 test points
+ n=4 a=0.1 target 0.90 cov 0.7962 +- 0.0072, n/(n+1)=0.8000, finite interval returned, warnings none checked
+ n=9 a=0.05 target 0.95 cov 0.9020 +- 0.0039, n/(n+1)=0.9000, finite interval returned, warnings none checked
+ n=18 a=0.05 target 0.95 cov 0.9469 +- 0.0023, n/(n+1)=0.9474, finite interval returned, warnings none checked

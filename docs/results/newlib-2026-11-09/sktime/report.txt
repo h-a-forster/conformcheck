@@ -1,0 +1,73 @@
+sktime: 66 cells, 55 statistical, Holm over 55
+--- sktime/conformal: rejected 9/12; k>n cells flagged 3/3
+  n=5     a=0.05  k=6     R=200 cov 0.8117 exact 1.0000 diff -0.1883 holm nan  FAIL finite set where k > n in 200 reps off={}
+  n=5     a=0.1   k=6     R=200 cov 0.7873 exact 1.0000 diff -0.2127 holm nan  FAIL finite set where k > n in 200 reps off={}
+  n=5     a=0.2   k=5     R=200 cov 0.7210 exact 0.8333 diff -0.1124 holm 2.4e-16 REJ FAIL  off={}
+  n=9     a=0.05  k=10    R=200 cov 0.8769 exact 1.0000 diff -0.1231 holm nan  FAIL finite set where k > n in 200 reps off={}
+  n=9     a=0.1   k=9     R=200 cov 0.8291 exact 0.9000 diff -0.0709 holm 4.9e-15 REJ FAIL  off={}
+  n=9     a=0.2   k=8     R=200 cov 0.7379 exact 0.8000 diff -0.0621 holm 6.9e-10 REJ FAIL  off={}
+  n=19    a=0.05  k=19    R=200 cov 0.9094 exact 0.9500 diff -0.0406 holm 7.9e-21 REJ FAIL  off={}
+  n=19    a=0.1   k=18    R=200 cov 0.8638 exact 0.9000 diff -0.0362 holm 1.3e-10 REJ FAIL  off={}
+  n=19    a=0.2   k=16    R=200 cov 0.7712 exact 0.8000 diff -0.0288 holm 0.00044 REJ FAIL  off={}
+  n=49    a=0.05  k=48    R=200 cov 0.9365 exact 0.9600 diff -0.0235 holm 3.6e-18 REJ FAIL  off={}
+  n=49    a=0.1   k=45    R=200 cov 0.8861 exact 0.9000 diff -0.0139 holm 0.00071 REJ FAIL  off={}
+  n=49    a=0.2   k=40    R=200 cov 0.7906 exact 0.8000 diff -0.0094 holm 0.83  FAIL  off={}
+  n=99    a=0.05  k=95    R=200 cov 0.9419 exact 0.9500 diff -0.0081 holm 0.00021 REJ FAIL  off={}
+  n=99    a=0.1   k=90    R=200 cov 0.8958 exact 0.9000 diff -0.0042 holm 1  PASS  off={}
+  n=99    a=0.2   k=80    R=200 cov 0.7953 exact 0.8000 diff -0.0047 holm 1  PASS  off={}
+--- sktime/conformal_bonferroni: rejected 2/3; k>n cells flagged 0/0
+  n=9     a=0.1   k=9     R=50 cov 0.8245 exact 0.9000 diff -0.0755 holm 2.3e-06 REJ FAIL  off={}
+  n=19    a=0.1   k=18    R=50 cov 0.8583 exact 0.9000 diff -0.0417 holm 0.0024 REJ FAIL  off={}
+  n=99    a=0.1   k=90    R=50 cov 0.8995 exact 0.9000 diff -0.0005 holm 1  PASS  off={}
+--- sktime/empirical: rejected 6/8; k>n cells flagged 1/1
+  n=9     a=0.05  k=10    R=50 cov 0.7761 exact 1.0000 diff -0.2239 holm nan  FAIL finite set where k > n in 50 reps off={}
+  n=9     a=0.1   k=9     R=50 cov 0.7418 exact 0.9000 diff -0.1582 holm 5.3e-26 REJ FAIL  off={}
+  n=9     a=0.2   k=8     R=50 cov 0.6533 exact 0.8000 diff -0.1467 holm 2.6e-12 REJ FAIL  off={}
+  n=19    a=0.05  k=19    R=50 cov 0.8776 exact 0.9500 diff -0.0724 holm 8.4e-16 REJ FAIL  off={}
+  n=19    a=0.1   k=18    R=50 cov 0.8234 exact 0.9000 diff -0.0766 holm 2.6e-10 REJ FAIL  off={}
+  n=19    a=0.2   k=16    R=50 cov 0.7300 exact 0.8000 diff -0.0700 holm 1.1e-05 REJ FAIL  off={}
+  n=99    a=0.05  k=95    R=50 cov 0.9343 exact 0.9500 diff -0.0157 holm 0.00068 REJ FAIL  off={}
+  n=99    a=0.1   k=90    R=50 cov 0.8872 exact 0.9000 diff -0.0128 holm 0.27  FAIL  off={}
+  n=99    a=0.2   k=80    R=50 cov 0.7898 exact 0.8000 diff -0.0102 holm 1  PASS  off={}
+--- sktime/empirical_residual: rejected 8/8; k>n cells flagged 1/1
+  n=9     a=0.05  k=10    R=50 cov 0.1161 exact 1.0000 diff -0.8839 holm nan  FAIL finite set where k > n in 50 reps off={}
+  n=9     a=0.1   k=9     R=50 cov 0.1357 exact 0.9000 diff -0.7643 holm 9.7e-88 REJ FAIL  off={}
+  n=9     a=0.2   k=8     R=50 cov 0.1720 exact 0.8000 diff -0.6280 holm 5.7e-89 REJ FAIL  off={}
+  n=19    a=0.05  k=19    R=50 cov 0.0620 exact 0.9500 diff -0.8880 holm 3.2e-89 REJ FAIL  off={}
+  n=19    a=0.1   k=18    R=50 cov 0.0846 exact 0.9000 diff -0.8154 holm 4.3e-89 REJ FAIL  off={}
+  n=19    a=0.2   k=16    R=50 cov 0.1268 exact 0.8000 diff -0.6732 holm 5.5e-87 REJ FAIL  off={}
+  n=99    a=0.05  k=95    R=50 cov 0.0340 exact 0.9500 diff -0.9160 holm 5.4e-85 REJ FAIL  off={}
+  n=99    a=0.1   k=90    R=50 cov 0.0561 exact 0.9000 diff -0.8439 holm 8.3e-88 REJ FAIL  off={}
+  n=99    a=0.2   k=80    R=50 cov 0.1049 exact 0.8000 diff -0.6951 holm 5.7e-89 REJ FAIL  off={}
+--- reference/exact: rejected 0/12; k>n cells flagged 0/3
+  n=5     a=0.05  k=6     R=200 cov 1.0000 exact 1.0000 diff +0.0000 holm nan  PASS  off={'0': 200}
+  n=5     a=0.1   k=6     R=200 cov 1.0000 exact 1.0000 diff +0.0000 holm nan  PASS  off={'0': 200}
+  n=5     a=0.2   k=5     R=200 cov 0.8320 exact 0.8333 diff -0.0013 holm 1  PASS  off={'0': 200}
+  n=9     a=0.05  k=10    R=200 cov 1.0000 exact 1.0000 diff +0.0000 holm nan  PASS  off={'0': 200}
+  n=9     a=0.1   k=9     R=200 cov 0.9067 exact 0.9000 diff +0.0067 holm 1  PASS  off={'0': 200}
+  n=9     a=0.2   k=8     R=200 cov 0.7945 exact 0.8000 diff -0.0055 holm 1  PASS  off={'0': 200}
+  n=19    a=0.05  k=19    R=200 cov 0.9533 exact 0.9500 diff +0.0033 holm 1  PASS  off={'0': 200}
+  n=19    a=0.1   k=18    R=200 cov 0.9013 exact 0.9000 diff +0.0013 holm 1  PASS  off={'0': 200}
+  n=19    a=0.2   k=16    R=200 cov 0.7998 exact 0.8000 diff -0.0002 holm 1  PASS  off={'0': 200}
+  n=49    a=0.05  k=48    R=200 cov 0.9633 exact 0.9600 diff +0.0033 holm 1  PASS  off={'0': 200}
+  n=49    a=0.1   k=45    R=200 cov 0.9023 exact 0.9000 diff +0.0023 holm 1  PASS  off={'0': 200}
+  n=49    a=0.2   k=40    R=200 cov 0.8016 exact 0.8000 diff +0.0016 holm 1  PASS  off={'0': 200}
+  n=99    a=0.05  k=95    R=200 cov 0.9506 exact 0.9500 diff +0.0007 holm 1  PASS  off={'0': 200}
+  n=99    a=0.1   k=90    R=200 cov 0.9029 exact 0.9000 diff +0.0029 holm 1  PASS  off={'0': 200}
+  n=99    a=0.2   k=80    R=200 cov 0.8006 exact 0.8000 diff +0.0006 holm 1  PASS  off={'0': 200}
+--- reference/k_minus_1: rejected 10/12; k>n cells flagged 3/3
+  n=5     a=0.05  k=6     R=200 cov 0.8320 exact 1.0000 diff -0.1680 holm nan  FAIL finite set where k > n in 200 reps off={'-1': 200}
+  n=5     a=0.1   k=6     R=200 cov 0.8320 exact 1.0000 diff -0.1680 holm nan  FAIL finite set where k > n in 200 reps off={'-1': 200}
+  n=5     a=0.2   k=5     R=200 cov 0.6778 exact 0.8333 diff -0.1555 holm 3.7e-40 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=9     a=0.05  k=10    R=200 cov 0.9067 exact 1.0000 diff -0.0933 holm nan  FAIL finite set where k > n in 200 reps off={'-1': 200}
+  n=9     a=0.1   k=9     R=200 cov 0.7945 exact 0.9000 diff -0.1055 holm 4.1e-40 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=9     a=0.2   k=8     R=200 cov 0.6873 exact 0.8000 diff -0.1127 holm 3.6e-23 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=19    a=0.05  k=19    R=200 cov 0.9013 exact 0.9500 diff -0.0487 holm 1.2e-30 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=19    a=0.1   k=18    R=200 cov 0.8510 exact 0.9000 diff -0.0490 holm 4.8e-13 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=19    a=0.2   k=16    R=200 cov 0.7484 exact 0.8000 diff -0.0516 holm 1.1e-12 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=49    a=0.05  k=48    R=200 cov 0.9429 exact 0.9600 diff -0.0171 holm 6e-12 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=49    a=0.1   k=45    R=200 cov 0.8818 exact 0.9000 diff -0.0182 holm 1.5e-06 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=49    a=0.2   k=40    R=200 cov 0.7825 exact 0.8000 diff -0.0175 holm 0.00026 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=99    a=0.05  k=95    R=200 cov 0.9409 exact 0.9500 diff -0.0091 holm 1.1e-05 REJ FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=99    a=0.1   k=90    R=200 cov 0.8939 exact 0.9000 diff -0.0061 holm 0.34  FAIL order statistic -1 (rank recovery) off={'-1': 200}
+  n=99    a=0.2   k=80    R=200 cov 0.7916 exact 0.8000 diff -0.0084 holm 0.27  FAIL order statistic -1 (rank recovery) off={'-1': 200}
