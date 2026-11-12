@@ -1,7 +1,8 @@
 # Upstream issue texts
 
-Drafts of bug reports for the libraries under test, one file per issue, ready to paste
-into each project's bug-report template. **None has been filed.** F11 is already
+Bug reports for the libraries under test, one file per issue. F1, F9, F10 and F12 were
+filed on 2026-11-07; [../upstream.md](../upstream.md) links the issues and their current
+state. The texts below are as written before filing. F11 is already
 reported upstream (puncc pull request #97), so its file is a supporting comment for that
 pull request, not a new issue. Each was re-checked
 on 2026-10-30 (F12: 2026-11-06) against the latest release (MAPIE 1.6.0, puncc 0.9.3)
@@ -10,16 +11,16 @@ was still open.
 
 | File | Library | REPORT.md | Status |
 |---|---|---|---|
-| [mapie-aps-include-last-label-false.md](mapie-aps-include-last-label-false.md) | MAPIE 1.6.0 (also 1.5.0) | F1 | not filed |
-| [mapie-raps-size-raps-ignored.md](mapie-raps-size-raps-ignored.md) | MAPIE 1.6.0 (also 1.5.0) | F9 | not filed |
-| [puncc-randomized-raps-set-rule.md](puncc-randomized-raps-set-rule.md) | puncc 0.9.3 | F10 | not filed |
-| [puncc-aps-raps-set-size-capped.md](puncc-aps-raps-set-size-capped.md) | puncc 0.9.3 | F11 | do not file: already in [deel-ai/puncc#97](https://github.com/deel-ai/puncc/pull/97) (open); optional comment |
-| [puncc-cqr-single-test-point.md](puncc-cqr-single-test-point.md) | puncc 0.9.3 | F12 (candidate) | not filed |
+| [mapie-aps-include-last-label-false.md](mapie-aps-include-last-label-false.md) | MAPIE 1.6.0 (also 1.5.0) | F1 | filed: [MAPIE#1021](https://github.com/scikit-learn-contrib/MAPIE/issues/1021) |
+| [mapie-raps-size-raps-ignored.md](mapie-raps-size-raps-ignored.md) | MAPIE 1.6.0 (also 1.5.0) | F9 | filed: [MAPIE#1020](https://github.com/scikit-learn-contrib/MAPIE/issues/1020) |
+| [puncc-randomized-raps-set-rule.md](puncc-randomized-raps-set-rule.md) | puncc 0.9.3 | F10 | filed: [puncc#101](https://github.com/deel-ai/puncc/issues/101) |
+| [puncc-aps-raps-set-size-capped.md](puncc-aps-raps-set-size-capped.md) | puncc 0.9.3 | F11 | not filed: already in [deel-ai/puncc#97](https://github.com/deel-ai/puncc/pull/97), which a maintainer folded into puncc v1.0 on 2026-11-04 |
+| [puncc-cqr-single-test-point.md](puncc-cqr-single-test-point.md) | puncc 0.9.3 | F12 (candidate) | filed: [puncc#100](https://github.com/deel-ai/puncc/issues/100) |
 
 Findings F2 to F8 have repros in [docs/results/default/repros](../results/default/repros)
 but no issue text yet.
 
-Before filing:
+Before filing a new one:
 
 - Search the project's open and closed issues and pull requests again (searched on
   2026-10-30: MAPIE #236 is related to F1 and is cited in that draft; puncc pull request

@@ -204,7 +204,8 @@ minutes; `--study full` (R=2000, m=1000) takes hours.
 - [docs/DESIGN.md](docs/DESIGN.md): formulas, oracle, study design, pre-registered
   hypotheses.
 - [docs/results/default](docs/results/default): matrix, summary, cell table and repros.
-- [docs/upstream](docs/upstream/README.md): issue texts for the libraries (not filed).
+- [docs/upstream.md](docs/upstream.md): issues filed upstream (MAPIE, puncc, statsforecast) and
+  their outcomes; the issue texts are in [docs/upstream/](docs/upstream/README.md).
 - [CHANGELOG.md](CHANGELOG.md) and [release notes](docs/release-notes-0.2.0.md).
 - [AGENTS.md](AGENTS.md): conventions, architecture map and current status.
 
