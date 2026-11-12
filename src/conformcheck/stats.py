@@ -243,40 +243,38 @@ def holm(pvalues: ArrayLike, level: float = 0.05) -> Adjusted:
     """Holm (1979) step-down procedure; controls the FWER at ``level``.
 
     ``thresholds[i]`` is the step-down critical value ``level / (N - rank_i)`` attached
-    to hypothesis ``i`` (rank from 0 in increasing p-value order).
+    to hypothesis ``i`` (rank from 0 in increasing p-value order). A NaN p-value stays
+    NaN, is never rejected and does not count toward the family size ``N``.
     """
     p = np.asarray(pvalues, dtype=float)
-    n = p.size
-    if n == 0:
-        empty = np.zeros(0)
-        return Adjusted(empty, empty.astype(bool), empty)
-    order = np.argsort(p, kind="stable")
-    ranked = p[order]
-    factors = n - np.arange(n)
-    adj_sorted = np.minimum(1.0, np.maximum.accumulate(ranked * factors))
-    adjusted = np.empty(n)
-    adjusted[order] = adj_sorted
-    thresholds = np.empty(n)
-    thresholds[order] = level / factors
+    adjusted = np.full(p.shape, np.nan)
+    thresholds = np.full(p.shape, np.nan)
+    kept = np.flatnonzero(~np.isnan(p))
+    n = kept.size
+    if n:
+        order = kept[np.argsort(p[kept], kind="stable")]
+        factors = n - np.arange(n)
+        adjusted[order] = np.minimum(1.0, np.maximum.accumulate(p[order] * factors))
+        thresholds[order] = level / factors
     return Adjusted(adjusted, adjusted <= level, thresholds)
 
 
 def benjamini_yekutieli(pvalues: ArrayLike, level: float = 0.05) -> Adjusted:
-    """Benjamini and Yekutieli (2001) step-up procedure; FDR control under dependence."""
+    """Benjamini and Yekutieli (2001) step-up procedure; FDR control under dependence.
+
+    NaN p-values are treated as in :func:`holm`.
+    """
     p = np.asarray(pvalues, dtype=float)
-    n = p.size
-    if n == 0:
-        empty = np.zeros(0)
-        return Adjusted(empty, empty.astype(bool), empty)
-    c_n = float(np.sum(1.0 / np.arange(1, n + 1)))
-    order = np.argsort(p, kind="stable")
-    ranked = p[order]
-    raw = ranked * n * c_n / np.arange(1, n + 1)
-    adj_sorted = np.minimum(1.0, np.minimum.accumulate(raw[::-1])[::-1])
-    adjusted = np.empty(n)
-    adjusted[order] = adj_sorted
-    thresholds = np.empty(n)
-    thresholds[order] = level * np.arange(1, n + 1) / (n * c_n)
+    adjusted = np.full(p.shape, np.nan)
+    thresholds = np.full(p.shape, np.nan)
+    kept = np.flatnonzero(~np.isnan(p))
+    n = kept.size
+    if n:
+        c_n = float(np.sum(1.0 / np.arange(1, n + 1)))
+        order = kept[np.argsort(p[kept], kind="stable")]
+        raw = p[order] * n * c_n / np.arange(1, n + 1)
+        adjusted[order] = np.minimum(1.0, np.minimum.accumulate(raw[::-1])[::-1])
+        thresholds[order] = level * np.arange(1, n + 1) / (n * c_n)
     return Adjusted(adjusted, adjusted <= level, thresholds)
 
 

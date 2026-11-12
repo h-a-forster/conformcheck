@@ -128,6 +128,21 @@ def test_holm_and_by_empty() -> None:
     assert stats.benjamini_yekutieli([]).reject.size == 0
 
 
+def test_holm_and_by_nan_stays_nan_and_leaves_the_family() -> None:
+    nan = float("nan")
+    h = stats.holm([0.01, nan, 0.02], 0.05)
+    assert np.allclose(h.adjusted, [0.02, nan, 0.02], equal_nan=True)
+    assert h.reject.tolist() == [True, False, True]
+    assert np.allclose(h.thresholds, [0.025, nan, 0.05], equal_nan=True)
+    # A failed test must never read as significant: unguarded, all-NaN came back as 0.0.
+    assert not stats.holm([nan, nan]).reject.any()
+    # One NaN must not wipe out the other BY decisions.
+    b = stats.benjamini_yekutieli([0.001, nan, 0.002], 0.05)
+    assert np.allclose(b.adjusted[[0, 2]], stats.benjamini_yekutieli([0.001, 0.002]).adjusted)
+    assert np.isnan(b.adjusted[1])
+    assert b.reject.tolist() == [True, False, True]
+
+
 def test_coverage_interval_contains_truth_for_exact_law() -> None:
     law = laws.split_count_law(19, 0.1, 100)
     rng = np.random.default_rng(4)
