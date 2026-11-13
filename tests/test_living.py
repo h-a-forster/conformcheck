@@ -77,6 +77,17 @@ def test_ts_battery_verdicts_and_resume(tmp_path: Path, monkeypatch: pytest.Monk
     assert len(calls) == n_calls  # finished rows are read back, not rerun
 
 
+def test_ts_library_that_fails_to_import_is_an_error_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(sys.modules, "darts", None)  # import darts raises ImportError
+    monkeypatch.setattr(tswrappers, "control_rows", lambda: [])
+    res = living.battery("darts", tmp_path)
+    assert set(res["verdicts"].values()) == {"ERROR"}
+    assert len(res["verdicts"]) == 2
+    assert all("ModuleNotFoundError" in d[0] for d in res["details"].values())
+
+
 def test_living_job_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     script = _script()
     baseline = {
@@ -98,7 +109,7 @@ def test_living_job_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
         (out / "run.json").write_text(json.dumps({"targets": ["darts"], "pins": []}))
         result = {
             "target": "darts",
-            "environment": {"darts": "0.49.0"},
+            "environment": {"darts": "0.49.0", "numpy": "2.5.4"},
             "verdicts": {"darts/naive_sym_all": verdict, "reference/exact": "PASS/-"},
             "details": {"darts/naive_sym_all": []},
         }
@@ -125,6 +136,7 @@ def test_living_job_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     summary = (out / "summary.md").read_text("utf-8")
     assert "`darts/naive_sym_all`: FAIL/- -> PASS/-" in summary
     assert "| darts | 0.48.1 | 0.49.0 | 2 | 1 |" in summary
+    assert "- **darts**: darts 0.48.1 -> 0.49.0, numpy - -> 2.5.4" in summary
     assert script.main(["notify", str(out), "--repo", "o/r", "--run-url", "U"]) == 0
     assert "Run and artifact: U" in (out / "issue.md").read_text("utf-8")
     assert script.main(["notify", str(out), "--repo", "o/r"]) == 0
@@ -151,3 +163,7 @@ def test_scrub_removes_machine_paths() -> None:
     home = str(Path.home())
     out = living.scrub({"a": [f"{sys.prefix}/x.py", f"{home}\\y"]})
     assert home not in json.dumps(out) and sys.prefix not in json.dumps(out)
+    # an error message is scrubbed before it is cut, so the cut never strands part of a path
+    exc = ImportError(f"cannot import name 'X' ({sys.prefix}/lib/site-packages/m.py)")
+    cut = len("cannot import name 'X' (") + len(sys.prefix) // 2
+    assert living._text(exc, cut) == "cannot import name 'X' (<env>/lib/site-packages/m.py)"[:cut]

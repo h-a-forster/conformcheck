@@ -6,9 +6,11 @@ verdicts with ``docs/results/living/baseline.json`` (:func:`compare`). The weekl
 (``.github/workflows/living.yml``) opens an issue when a verdict changes.
 
 A row's verdict is ``"<worst status at n <= 100>/<worst status at n > 100>"`` (the same
-split as the conformance matrix). Seeds are fixed, so a release always gives the same
-verdicts; a change means the library's behaviour changed (or the battery did, in which case
-the baseline is regenerated in the same commit).
+split as the conformance matrix). Seeds are fixed, so the same environment always gives the
+same verdicts. The library is not the only thing that moves: its dependencies (numpy, scipy,
+scikit-learn, pandas) also resolve to their newest releases, and the platform can differ
+from the baseline's, so the summary lists every environment entry that changed next to the
+verdicts. A battery change regenerates the baseline in the same commit.
 """
 
 from __future__ import annotations
@@ -65,6 +67,7 @@ def environment(target: Target) -> dict[str, str | None]:
     names = dict.fromkeys((*target.packages, *CONTEXT_PACKAGES, "conformcheck"))
     out: dict[str, str | None] = {n: _version(n) for n in names}
     out["python"] = platform.python_version()
+    out["platform"] = sys.platform
     return out
 
 
@@ -76,6 +79,13 @@ def scrub(obj: Any) -> Any:
         for form in {path, path.replace("\\", "/")}:
             text = text.replace(json.dumps(form)[1:-1], label)
     return json.loads(text)
+
+
+def _text(exc: BaseException, limit: int) -> str:
+    """``exc``'s message, scrubbed before it is cut to ``limit`` characters: a cut never
+    splits a path the scrub would then miss, and the kept text does not depend on how long
+    this machine's paths are."""
+    return str(scrub(str(exc)))[:limit]
 
 
 def row_verdict(cells: list[tuple[int, str]]) -> str:
@@ -151,7 +161,7 @@ def _ts_battery(target: Target, work: Path) -> dict[str, Any]:
             rec = {
                 "row": row.name,
                 "verdict": "ERROR",
-                "non_pass": [f"{type(exc).__name__}: {str(exc)[:300]}"],
+                "non_pass": [f"{type(exc).__name__}: {_text(exc, 300)}"],
             }
         rec["secs"] = round(time.time() - t0, 1)
         with done_path.open("a", encoding="utf-8") as fh:
@@ -248,6 +258,20 @@ def summary_markdown(
             f"| {target} | {old_v} | {r['environment'].get(pkg)} | {len(r['verdicts'])} | "
             f"{n_changed} |"
         )
+    env_lines = []
+    for target in sorted(results):
+        old_env = base_targets.get(target, {}).get("environment", {})
+        new_env = results[target].get("environment", {})
+        diff = [
+            f"{k} {old_env.get(k, '-')} -> {new_env.get(k, '-')}"
+            for k in sorted(set(old_env) | set(new_env))
+            if old_env.get(k) != new_env.get(k)
+        ]
+        if diff:
+            env_lines.append(f"- **{target}**: {', '.join(diff)}")
+    if env_lines:
+        lines += ["", "## Environment changes", "", "Any of these can move a verdict.", ""]
+        lines += env_lines
     if changes:
         lines += ["", "## Changed verdicts", "", "Verdict: worst status at n <= 100 / n > 100.", ""]
         for c in changes:

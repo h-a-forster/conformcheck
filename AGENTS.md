@@ -106,8 +106,11 @@ One fresh wheels-only venv per target (MAPIE, crepes, puncc: `studies/quick.toml
 statsforecast, sktime, darts: `tswrappers`), about 40 min on a 4-core laptop, output in
 `tmp/living/<date>/`. Exit 0: no verdict changed; 1: a row's verdict (worst status at
 n <= 100 / n > 100) changed; 2: a target could not be installed or run. Seeds are fixed,
-so a verdict changes only when a library's behaviour does. `.github/workflows/living.yml`
-runs it weekly and opens (or comments on) one issue on exit 1. After a change is checked
+but numpy, scipy, scikit-learn, pandas and the platform move too: the summary's
+"Environment changes" says which, so check them before blaming the library.
+`.github/workflows/living.yml` runs it weekly and opens (or comments on) one issue on exit 1;
+a manual run does so only with the `notify` input. GitHub disables the schedule after 60
+days without a commit: re-enable it in the Actions tab. After a change is checked
 against the default study, regenerate the baseline with `--update-baseline` (use `--pin
 NAME==VERSION` to rebuild it for the audited versions). Changing the battery (quick.toml,
 `tswrappers`, `living.py`) needs a new baseline in the same commit.

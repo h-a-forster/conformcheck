@@ -18,6 +18,7 @@ import logging
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -62,6 +63,19 @@ def _cached(compute: Callable[[np.ndarray], dict[float, Interval]]) -> Fn:
         lo, hi = cache[key][round(alpha, 6)]
         p = model.predict(x_test)
         return np.column_stack([p + lo, p + hi])
+
+    return fn
+
+
+def _lazy(make: Callable[[], Fn]) -> Fn:
+    """``make()``'s fn, built on the first call: listing rows never imports the library, so a
+    missing or broken release fails inside the row that runs it (an ERROR verdict)."""
+    built: list[Fn] = []
+
+    def fn(*args: Any, **kwargs: Any) -> np.ndarray:
+        if not built:
+            built.append(make())
+        return built[0](*args, **kwargs)
 
     return fn
 
@@ -182,26 +196,39 @@ def control_rows(n: tuple[int, ...] = (5, 9, 19, 99)) -> list[Row]:
 
 
 def library_rows(library: str) -> list[Row]:
-    """The rows of one library. Raises ImportError when the library is not installed."""
+    """The rows of one library; the library is imported when a row first runs."""
     warnings.filterwarnings("ignore")
     if library == "statsforecast":
         ns = (2, 5, 9, 19, 99, 999)
         return [
-            Row(f"statsforecast/{m}", _statsforecast(m), ns)
+            Row(f"statsforecast/{m}", _lazy(partial(_statsforecast, m)), ns)
             for m in ("conformal_distribution", "conformal_error")
         ]
     if library == "sktime":
         return [
-            Row("sktime/conformal", _sktime("conformal"), (5, 9, 19, 99)),
+            Row("sktime/conformal", _lazy(partial(_sktime, "conformal")), (5, 9, 19, 99)),
             Row(
-                "sktime/conformal_bonferroni", _sktime("conformal_bonferroni"), (9, 19, 99), reps=50
+                "sktime/conformal_bonferroni",
+                _lazy(partial(_sktime, "conformal_bonferroni")),
+                (9, 19, 99),
+                reps=50,
             ),
-            Row("sktime/empirical", _sktime("empirical"), (9, 19, 99), reps=50),
-            Row("sktime/empirical_residual", _sktime("empirical_residual"), (9, 19, 99), reps=50),
+            Row("sktime/empirical", _lazy(partial(_sktime, "empirical")), (9, 19, 99), reps=50),
+            Row(
+                "sktime/empirical_residual",
+                _lazy(partial(_sktime, "empirical_residual")),
+                (9, 19, 99),
+                reps=50,
+            ),
         ]
     if library == "darts":
         return [
-            Row("darts/naive_sym_cal_length", _darts(True), (5, 9, 19, 99, 999), score="abs"),
-            Row("darts/naive_sym_all", _darts(False), (9, 19, 99), score="abs"),
+            Row(
+                "darts/naive_sym_cal_length",
+                _lazy(partial(_darts, True)),
+                (5, 9, 19, 99, 999),
+                score="abs",
+            ),
+            Row("darts/naive_sym_all", _lazy(partial(_darts, False)), (9, 19, 99), score="abs"),
         ]
     raise ValueError(f"unknown library {library!r}; known: {', '.join(LIBRARIES)}")
