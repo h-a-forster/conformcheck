@@ -134,8 +134,11 @@ def test_holm_and_by_nan_stays_nan_and_leaves_the_family() -> None:
     assert np.allclose(h.adjusted, [0.02, nan, 0.02], equal_nan=True)
     assert h.reject.tolist() == [True, False, True]
     assert np.allclose(h.thresholds, [0.025, nan, 0.05], equal_nan=True)
-    # A failed test must never read as significant: unguarded, all-NaN came back as 0.0.
-    assert not stats.holm([nan, nan]).reject.any()
+    # Unguarded, a NaN counted toward N: the others came back 0.03 and 0.04 (too
+    # conservative) and an all-NaN family still got finite thresholds.
+    all_nan = stats.holm([nan, nan])
+    assert not all_nan.reject.any()
+    assert np.isnan(all_nan.thresholds).all()
     # One NaN must not wipe out the other BY decisions.
     b = stats.benjamini_yekutieli([0.001, nan, 0.002], 0.05)
     assert np.allclose(b.adjusted[[0, 2]], stats.benjamini_yekutieli([0.001, 0.002]).adjusted)
