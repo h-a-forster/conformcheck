@@ -1,0 +1,40 @@
+# Quick battery: the weekly living audit (scripts/living.py) and a minutes-long local check.
+# Every method row of the default study on a reduced grid, fixed seed, so the same library
+# release always gives the same verdicts. A verdict change against
+# docs/results/living/baseline.json means the library's behaviour changed. Not a result by
+# itself: the default study is the evidence.
+
+name = "quick"
+seed = 20261113
+reps = 200
+test_points = 500
+workers = 4
+fwer = 0.05
+fdr = 0.05
+alphas = ["0.05", "0.1", "0.2"]
+edge_alphas = true
+
+[grids.split]
+n = [5, 9, 10, 19, 20, 99, 999]
+dgps = ["reg_gauss", "cls_gauss_inf"]
+
+[grids.tied]
+n = [9, 19]
+dgps = ["reg_tied"]
+
+[grids.jackknife_plus]
+n = [9, 19]
+dgps = ["reg_constant"]
+
+[grids.cv_plus]
+n = [19, 99]
+n_folds = [5]
+dgps = ["reg_constant"]
+
+[grids.class_conditional]
+n = [9, 19]
+dgps = ["cls_gauss"]
+
+[controls]
+reference = true
+mutants = ["k_plus_1"]

@@ -57,7 +57,11 @@ src/conformcheck/
   testing.py        public check_* helpers for library authors                            [done]
   pytest_plugin.py  pytest11 plugin: options + conformcheck_settings fixture               [done]
   cli.py            conformcheck libraries | plan | run | report | repro                   [done]
-  studies/          smoke.toml, default.toml, full.toml, batch.toml (batch-size check)
+  tswrappers.py     statsforecast, sktime, darts as split regressors (fixed 0 forecaster)  [done]
+  living.py         living-audit battery per target, verdicts, comparison with baseline   [done]
+  studies/          smoke.toml, default.toml, full.toml, batch.toml (batch-size check),
+                    quick.toml (living-audit battery)
+scripts/living.py     living audit: fresh venv per library, newest release, compare, issue
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
 scripts/compare_runs.py  two runs unit by unit and cell by cell (e.g. a library at two versions)
@@ -91,6 +95,22 @@ uv run python scripts/run_study.py --study full --out runs/full --attempts 5
 ```
 
 Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
+
+## Living audit
+
+```sh
+uv run python scripts/living.py            # newest releases vs docs/results/living/baseline.json
+```
+
+One fresh wheels-only venv per target (MAPIE, crepes, puncc: `studies/quick.toml`;
+statsforecast, sktime, darts: `tswrappers`), about 40 min on a 4-core laptop, output in
+`tmp/living/<date>/`. Exit 0: no verdict changed; 1: a row's verdict (worst status at
+n <= 100 / n > 100) changed; 2: a target could not be installed or run. Seeds are fixed,
+so a verdict changes only when a library's behaviour does. `.github/workflows/living.yml`
+runs it weekly and opens (or comments on) one issue on exit 1. After a change is checked
+against the default study, regenerate the baseline with `--update-baseline` (use `--pin
+NAME==VERSION` to rebuild it for the audited versions). Changing the battery (quick.toml,
+`tswrappers`, `living.py`) needs a new baseline in the same commit.
 
 ## Status and next steps
 
