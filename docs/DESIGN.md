@@ -494,7 +494,7 @@ library result is believed.
 - **Adapters**: documented-example reproduction, an input-shape contract, the `k > n`
   behaviour, and determinism under a fixed seed.
 - **Runner**: resume and idempotence, the fingerprint guard, and the worker cap.
-- **CI**: `pull_request` and `workflow_dispatch` only. Lint job, plus tests on
+- **CI**: pushes to `main`, pull requests and manual dispatch. Lint job, plus tests on
   ubuntu py3.11, ubuntu py3.13 and windows py3.13 with all extras (CPU torch).
   `-m "not slow"`.
 
