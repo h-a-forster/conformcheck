@@ -82,6 +82,10 @@ is a low-severity defect. Not filed: #3227 chose it after review.
 
 ## Reproducing
 
+The adapters now live in the package as `conformcheck.tswrappers`, and the weekly living
+audit (`scripts/living.py`, AGENTS.md) runs them against each new release. The scripts below
+are kept as they were run.
+
 ```sh
 sh docs/results/newlib-2026-11-09/scripts/mkvenv.sh statsforecast 3.12 statsforecast==2.1.1 scikit-learn
 tmp/newlib/statsforecast/venv/Scripts/python -I docs/results/newlib-2026-11-09/scripts/ccrun.py statsforecast
