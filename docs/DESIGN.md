@@ -634,3 +634,90 @@ classification row (LAC, APS, RAPS).
 10. **Bracketing confirms F2/F3-type boundary effects at large n for crepes unsmoothed
     LAC** (k + 1 at n = 999, alpha in {0.1, 0.2}) and finds no offset in the other LAC
     rows.
+
+## 15. Prediction-powered inference addendum (written 2026-11-21, before its run)
+
+### 15.1 Question and target
+
+LLM evaluations often estimate a rate (accuracy, failure rate) from 20-200 human labels
+and thousands of judge labels with prediction-powered inference (Angelopoulos, Bates,
+Fannjiang, Jordan and Zrnic 2023; PPI++: Angelopoulos, Duchi and Zrnic 2023,
+arXiv:2311.01453). Its mean interval is a normal (CLT) interval, valid as n grows. The
+question is its exact coverage at those label counts. Target: `ppi_py` 0.2.3 (PyPI
+`ppi-python`, MIT), `ppi_mean_ci` with `lam=1` (PPI) and with its default `lam=None`
+(PPI++, lambda tuned from the data), two-sided. Baselines on the labels alone: the
+library's `classical_mean_ci` (Wald) and Clopper-Pearson (computed here with scipy).
+
+### 15.2 Model and exact law (`conformcheck/ppi.py`)
+
+- Truth `Y ~ Bernoulli(pi)`; a binary judge with sensitivity = specificity = `acc`. The
+  labelled pair `(Y, Yhat)` then has cell probabilities `pi acc`, `pi (1 - acc)`,
+  `(1 - pi)(1 - acc)`, `(1 - pi) acc` for `(1,1), (1,0), (0,1), (0,0)`, and the counts of
+  `n` labelled pairs are multinomial. The estimand is `pi`.
+- The judge mean `mu = pi acc + (1 - pi)(1 - acc)` is treated as known: the unlabelled
+  input is a fixed array of `N = 10,000` judge labels with exactly `N mu` ones (an
+  integer on the whole grid). Coverage is therefore conditional on the unlabelled mean
+  equal to its expectation; the library still adds its own `mu (1 - mu) / N` variance
+  term. A Monte Carlo run with `Binomial(N, mu)` unlabelled counts measures how much this
+  conditioning matters (15.4).
+- Coverage of a method at `(n, acc, pi, alpha)` is the sum of the multinomial
+  probabilities of the outcomes whose interval, computed by the library, contains `pi`
+  (closed interval, compared in float64 against the double nearest `pi`). Probabilities
+  are exact rationals (`pi`, `acc` read from their decimal repr), summed as integers over
+  the common denominator. Outcomes are evaluated in order of decreasing probability until
+  the unevaluated mass is at most `1e-10`; the report states that mass, so the true
+  coverage lies in `[c, c + mass]`.
+- Evaluation: the library's d-dimensional mean interval evaluates many outcomes in one
+  call, one outcome per column (`lam_optim_mode="element"` for PPI++, which for one
+  column is the default `"overall"` computation). Measured against one call per outcome
+  before the run: endpoints agree to 1e-16 (PPI) and 2e-14 (PPI++). Any outcome whose
+  endpoint lies within 1e-9 of `pi` is re-evaluated with a one-dimensional call, as a user
+  would make it, so the batching cannot flip a covered outcome. Wald and Clopper-Pearson
+  depend on the labels only and are enumerated over `Binomial(n, pi)`.
+- Grid: `n` in {20, 50, 100, 200}, `acc` in {0.7, 0.8, 0.9, 0.95}, `pi` in {0.02, 0.1,
+  0.3, 0.5}, `alpha` in {0.1, 0.05}: 128 cells per method. Measured cost about 15
+  CPU-minutes, so no trimming.
+- A cell is **below nominal** when its coverage is under `1 - alpha - 0.01`. These are
+  exact numbers, not estimates: no test or multiplicity correction applies.
+
+### 15.3 Hypotheses
+
+Known before the run: normal intervals for a proportion under-cover near 0 and 1 at
+small n (for Wald, Brown, Cai and DasGupta 2001), and the PPI guarantee is asymptotic.
+The predictions below are about where the PPI intervals fall below nominal on this grid.
+
+11. **PPI (`lam=1`) is below nominal wherever a labelled sample without any judge
+    disagreement is likely.** With no disagreement the rectifier has zero variance and
+    the interval is the judge mean plus or minus the small unlabelled term, which misses
+    `pi` when the judge is biased (`mu != pi`, every `pi` except 0.5). Predicted below
+    nominal in every cell with `pi != 0.5` and `acc^n >= alpha`; at `pi = 0.5` (unbiased
+    judge) never below nominal.
+12. **PPI++ inherits the zero-count failure of Wald.** When every label is 0, the tuned
+    lambda is 0 and the interval is the single point 0, so coverage is at most
+    `1 - (1 - pi)^n`. Predicted below nominal at `pi = 0.02` for every `n <= 100` and
+    every `acc`, and lower than PPI in the majority of cells with `pi <= 0.1`.
+13. **Baselines.** Wald is below nominal at `pi = 0.02` for every `n` and at `pi = 0.1`
+    for `n <= 50`. Clopper-Pearson is never below `1 - alpha` (a theorem; a control of
+    the enumeration).
+14. **Away from the edges.** At `pi` in {0.3, 0.5} and `n >= 100`, PPI and PPI++ are
+    within one point of nominal (or above) for every `acc`.
+
+### 15.4 Cross-check
+
+On six cells chosen before the run (`n = 20` and `n = 50` at `pi = 0.02`, `acc = 0.9`;
+`n = 50` at `pi = 0.1`, `acc = 0.8`; `n = 100` at `pi = 0.3`, `acc = 0.7`; `n = 200` at
+`pi = 0.02`, `acc = 0.95`; `n = 20` at `pi = 0.5`, `acc = 0.95`; `alpha = 0.1`), 20,000
+labelled samples are drawn as raw `Y` and `Yhat` arrays with a fixed seed and passed one
+at a time to `ppi_mean_ci` and `classical_mean_ci`. The exact coverage must lie in the
+99% Clopper-Pearson interval of the Monte Carlo estimate. The same draws with a
+`Binomial(N, mu)` unlabelled count are reported beside them as the unconditional
+coverage.
+
+### 15.5 Amendment (2026-11-21, after the run)
+
+The study ran as registered in 15.1-15.4; no grid cell, method, rule or hypothesis changed.
+Two statements above are corrected here. The run took about 131 CPU-minutes (33 minutes on
+4 workers), not about 15: PPI++ costs about 3 ms per outcome whatever the batch size. In
+hypothesis 12, when the labels and the judge labels are all 0 the tuned lambda is 0 only up
+to rounding (below 1e-31 on this grid in `ppi_py` 0.2.3), so the interval is a point within
+1e-31 of 0 rather than exactly 0; the bound `1 - (1 - pi)^n` is unaffected.

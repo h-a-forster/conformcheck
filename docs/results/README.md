@@ -65,3 +65,9 @@ counts do not describe the full slice.
 statsforecast, sktime and darts through `conformcheck.testing` with a fixed zero forecaster
 (run 2026-11-09; REPORT section 4, "Time-series wrappers"). Its own
 [README](newlib-2026-11-09/README.md) has the design, results, file list and how to rerun.
+
+## ppi/
+
+Exact coverage of `ppi_py` 0.2.3's mean intervals (PPI, PPI++) and two label-only baselines
+with a binary judge, run 2026-11-21 by `scripts/ppi_study.py` (DESIGN 15, REPORT section 4).
+Its own [README](ppi/README.md) has the design, results, file list and how to rerun.

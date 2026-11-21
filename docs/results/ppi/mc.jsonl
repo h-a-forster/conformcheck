@@ -1,0 +1,12 @@
+{"cell":[20,"0.9","0.02","0.1"],"covered":{"ppi":17219,"ppi++":5728},"draws":20000,"elapsed_s":44.09,"uid":"mc-n20-acc0.9-pi0.02-alpha0.1-binomial","variant":"binomial"}
+{"cell":[50,"0.9","0.02","0.1"],"covered":{"ppi":17234,"ppi++":12223},"draws":20000,"elapsed_s":44.374,"uid":"mc-n50-acc0.9-pi0.02-alpha0.1-binomial","variant":"binomial"}
+{"cell":[20,"0.9","0.02","0.1"],"covered":{"ppi":17245,"ppi++":5731,"wald":6555},"draws":20000,"elapsed_s":49.375,"uid":"mc-n20-acc0.9-pi0.02-alpha0.1-fixed","variant":"fixed"}
+{"cell":[50,"0.9","0.02","0.1"],"covered":{"ppi":17258,"ppi++":12215,"wald":12528},"draws":20000,"elapsed_s":49.713,"uid":"mc-n50-acc0.9-pi0.02-alpha0.1-fixed","variant":"fixed"}
+{"cell":[50,"0.8","0.1","0.1"],"covered":{"ppi":17733,"ppi++":16935},"draws":20000,"elapsed_s":46.904,"uid":"mc-n50-acc0.8-pi0.1-alpha0.1-binomial","variant":"binomial"}
+{"cell":[100,"0.7","0.3","0.1"],"covered":{"ppi":17974,"ppi++":17825},"draws":20000,"elapsed_s":47.886,"uid":"mc-n100-acc0.7-pi0.3-alpha0.1-binomial","variant":"binomial"}
+{"cell":[50,"0.8","0.1","0.1"],"covered":{"ppi":17648,"ppi++":16940,"wald":17254},"draws":20000,"elapsed_s":53.536,"uid":"mc-n50-acc0.8-pi0.1-alpha0.1-fixed","variant":"fixed"}
+{"cell":[100,"0.7","0.3","0.1"],"covered":{"ppi":18022,"ppi++":17809,"wald":17428},"draws":20000,"elapsed_s":54.492,"uid":"mc-n100-acc0.7-pi0.3-alpha0.1-fixed","variant":"fixed"}
+{"cell":[200,"0.95","0.02","0.1"],"covered":{"ppi":17599,"ppi++":16993},"draws":20000,"elapsed_s":47.925,"uid":"mc-n200-acc0.95-pi0.02-alpha0.1-binomial","variant":"binomial"}
+{"cell":[200,"0.95","0.02","0.1"],"covered":{"ppi":17635,"ppi++":16957,"wald":17731},"draws":20000,"elapsed_s":54.499,"uid":"mc-n200-acc0.95-pi0.02-alpha0.1-fixed","variant":"fixed"}
+{"cell":[20,"0.95","0.5","0.1"],"covered":{"ppi":18916,"ppi++":17173},"draws":20000,"elapsed_s":44.724,"uid":"mc-n20-acc0.95-pi0.5-alpha0.1-binomial","variant":"binomial"}
+{"cell":[20,"0.95","0.5","0.1"],"covered":{"ppi":19675,"ppi++":17762,"wald":17663},"draws":20000,"elapsed_s":50.987,"uid":"mc-n20-acc0.95-pi0.5-alpha0.1-fixed","variant":"fixed"}

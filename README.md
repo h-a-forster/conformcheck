@@ -76,6 +76,19 @@ P pass  C conservative  F fail  L law mismatch  O refuses a feasible level  R re
 Each finding has a standalone repro under
 [docs/results/default/repros](docs/results/default/repros).
 
+## Prediction-powered inference (ppi_py)
+
+The same exact approach applied to LLM-evaluation statistics: with a binary truth and a binary
+judge, the labelled sample is a 4-cell multinomial, so the coverage of `ppi_py` 0.2.3's mean
+intervals can be computed exactly by enumeration, each interval by the library itself. Over
+n = 20-200 labels, judge accuracy 0.7-0.95 and base rates 0.02-0.5, at 90% nominal: PPI is
+below nominal by more than a point in 29 of 64 cells, PPI++ (tuned lambda) in 50, the
+label-only Wald interval in 48 and Clopper-Pearson in none. Under-coverage near 0 and 1 is
+known; what this adds is an exact map of where it starts. It shows that a more accurate
+judge makes PPI worse at small n and that PPI++ stays below nominal at n = 200 for base
+rates up to 0.1.
+Details in REPORT section 4 and [docs/results/ppi](docs/results/ppi/README.md).
+
 ## How it works
 
 - **Exact laws** (`conformcheck.laws`): the order statistic `k`, the BetaBinomial count

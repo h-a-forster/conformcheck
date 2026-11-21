@@ -59,14 +59,17 @@ src/conformcheck/
   cli.py            conformcheck libraries | plan | run | report | repro                   [done]
   tswrappers.py     statsforecast, sktime, darts as split regressors (fixed 0 forecaster)  [done]
   living.py         living-audit battery per target, verdicts, comparison with baseline   [done]
+  ppi.py            exact coverage of ppi_py mean intervals by enumeration (DESIGN 15)    [done]
   studies/          smoke.toml, default.toml, full.toml, batch.toml (batch-size check),
                     quick.toml (living-audit battery), full-aps-raps.toml (APS/RAPS slice
-                    of full; a grid's optional `methods` key keeps only those rows)
+                    of full; a grid's optional `methods` key keeps only those rows),
+                    ppi.toml (`kind = "ppi"`, read by conformcheck.ppi only)
 scripts/living.py     living audit: fresh venv per library, newest release, compare, issue
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
 scripts/compare_runs.py  two runs unit by unit and cell by cell (e.g. a library at two versions)
 scripts/mapie_versions.sh  default study's MAPIE rows under MAPIE 1.5.0 and 1.6.0 (resumable)
+scripts/ppi_study.py  ppi_py study: pinned venv, exact run, Monte Carlo check, report
 tests/              laws, stats, reference, adapters, pipeline, testing API, controls
 REPORT.md           default study findings; docs/results/default/ holds its outputs
 docs/DESIGN.md      the spec
@@ -96,6 +99,20 @@ uv run python scripts/run_study.py --study full --out runs/full --attempts 5
 
 Watch `runs/<name>/progress.log`. A rerun of the same command resumes.
 
+## Prediction-powered inference study
+
+```sh
+uv run python scripts/ppi_study.py --out runs/ppi --to docs/results/ppi   # about 40 min, 4 workers
+```
+
+`ppi_py` is not a dependency of this repository: the script installs it, pinned by
+`docs/results/ppi/constraints.txt`, in a fresh wheels-only venv (`runs/ppi/venv`) and runs
+`python -m conformcheck.ppi run|mc` there; `report` needs only the core. `tests/test_ppi.py`
+runs on reference formulas; its `adapter` test needs `ppi_py` and skips without it (run it
+with that venv's Python plus pytest). The exact law is in `ppi.py`'s docstring and DESIGN
+15. PPI++ costs about 3 ms per outcome whatever the batch size (the N-row temporaries), so
+the cost grows with `n_unlabelled`. A changed `ppi.toml` needs a new `--out` or `--force`.
+
 ## Living audit
 
 ```sh
@@ -121,6 +138,10 @@ Status (2026-11-13): **0.2.0 is tagged (`v0.2.0`).** The repository is public. F
 F10 and F12 are filed upstream (`docs/upstream.md`). The 2026-11-09 study of statsforecast,
 sktime and darts is in `docs/results/newlib-2026-11-09/` and REPORT section 4. Open work is
 tracked outside the repository.
+
+- 2026-11-21: exact coverage of `ppi_py` 0.2.3 (DESIGN 15, pre-registered first; results in
+  `docs/results/ppi/`, REPORT section 4). The `alternative` bug of `ppi_mean_ci` with
+  `lam=None` has a repro there and is not reported upstream.
 
 - 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases. The F1, F9 and
   F10 repros give the same output; F1 and F9 also reproduce on MAPIE 1.5.0. New finding

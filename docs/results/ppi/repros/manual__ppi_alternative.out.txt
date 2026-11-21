@@ -1,0 +1,5 @@
+ppi-python 0.2.3 numpy 2.5.5
+lam=None, two-sided:        [0.26196751] [0.33053021]
+lam=None, alternative=larger: [0.26196751] [0.33053021]
+lam=1,    alternative=larger: [0.2830321] [inf]
+REPRODUCES: the one-sided request returned the two-sided interval

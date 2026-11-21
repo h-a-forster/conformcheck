@@ -4,11 +4,11 @@ This report covers the `default` study as of round 2 (2026-10-24). It runs four 
 conformal-prediction libraries (37 library-method rows) and a set of reference and mutant
 rows through the exact finite-sample laws of split conformal prediction. All numbers
 below come from [docs/results/default](docs/results/default), except where a section
-names another source (the batch-size check, the MAPIE version comparison and the
-time-series wrappers at the end of section 4, the repros of F11 and F12). Each finding has a
-standalone repro script in [docs/results/default/repros](docs/results/default/repros).
-The scripts depend only on numpy, scikit-learn and the library concerned, and exit 1
-while the problem reproduces.
+names another source (the batch-size check, the MAPIE version comparison, the
+time-series wrappers and prediction-powered inference at the end of section 4, the
+repros of F11 and F12). Each finding has a standalone repro script in
+[docs/results/default/repros](docs/results/default/repros). The scripts depend only on
+numpy, scikit-learn and the library concerned, and exit 1 while the problem reproduces.
 
 The design, the formulas and the pre-registered hypotheses are in
 [docs/DESIGN.md](docs/DESIGN.md); section 14 there is the round-2 addendum, committed
@@ -698,6 +698,58 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
   error, a low-severity defect by the rule applied to MAPIE 1.5.0; darts chose it in
   PR #3227.
 
+### Prediction-powered inference: ppi_py (run 2026-11-21)
+
+A study outside the conformal grid, pre-registered in DESIGN section 15: the exact
+finite-sample coverage of `ppi_py` 0.2.3's mean intervals when 20-200 human labels are
+combined with judge labels, as in LLM evaluations. Truth `Y ~ Bernoulli(pi)`, a binary judge
+with sensitivity = specificity = `acc`, and N = 10,000 unlabelled judge labels whose mean is
+exactly the judge's expected rate. The labelled sample is then a 4-cell multinomial, so the
+coverage is exact: every outcome's interval is computed by the library and the probabilities
+of the covering outcomes are summed as exact rationals (at most 2.5e-11 left unevaluated per
+cell). Grid: n in {20, 50, 100, 200}, acc in {0.7, 0.8, 0.9, 0.95}, pi in {0.02, 0.1, 0.3,
+0.5}, alpha in {0.1, 0.05}. Results, the full map and repros are in
+[docs/results/ppi](docs/results/ppi/README.md).
+
+That normal intervals under-cover near 0 and 1 at small n is known (Brown, Cai and
+DasGupta 2001 for Wald), and the PPI and PPI++ guarantees are asymptotic. The contribution
+is the exact map of where it happens at these label counts. Cells below nominal by more than
+one point, of 64 per method:
+
+| alpha | PPI (`lam=1`) | PPI++ (default `lam=None`) | Wald (labels only) | Clopper-Pearson (labels only) |
+|---|---|---|---|---|
+| 0.1 | 29 | 50 | 48 | 0 |
+| 0.05 | 28 | 45 | 40 | 0 |
+
+- **PPI** is below nominal at n = 20 in 14 of 16 (acc, pi) cells and, for judges with
+  accuracy up to 0.9, covers 0.899 or more by n = 200. A better judge makes small samples
+  worse: with acc = 0.95 and pi < 0.5, coverage at 90% is 0.59-0.62 at n = 20, and at
+  pi = 0.02 still 0.849 at n = 100 and 0.884 at n = 200. With probability `acc^n` no
+  labelled pair disagrees; the rectifier then has zero variance and the interval collapses onto the
+  judge mean, which misses `pi` whenever the judge is biased.
+- **PPI++** is lower than PPI in 62 of 64 cells with pi <= 0.1 and below nominal at n = 200
+  in all 8 of them (0.853-0.889 at 90%). When every label is 0 its tuned lambda is 0 (up to
+  rounding) and the interval collapses onto 0, so coverage is at most `1 - (1 - pi)^n`
+  (0.33 at n = 20, pi = 0.02). At pi = 0.02 it tracks the label-only Wald interval, and
+  with acc = 0.95 falls below it (0.853 vs 0.890 at n = 200).
+- **Wald** is below nominal in 48 of 64 cells at 90% (12 of 16 (n, pi) cells; it ignores
+  the judge), including pi = 0.1 at n = 200 (0.880); **Clopper-Pearson** in none.
+
+A Monte Carlo check (20,000 raw draws passed one at a time to the library, six cells fixed
+before the run) agrees with the exact values in all 18 comparisons. With the unlabelled
+judge count drawn from Binomial(N, mu) instead of fixed at its expectation, coverage
+moves by at most 0.005 in five of the six cells; at n = 20, acc = 0.95, pi = 0.5 it drops
+from 0.983 to 0.946 (PPI) and from 0.890 to 0.859 (PPI++). Holding the judge mean fixed
+can therefore overstate coverage where the interval rests on the unlabelled term alone
+(no labelled disagreement, unbiased judge). Shortfalls of several points do not come from
+it; cells within half a point of the threshold could change status (only six cells were
+checked).
+
+One library bug turned up while reading the source, outside the study: with the default
+`lam=None`, `ppi_mean_ci(..., alternative="larger")` returns the two-sided interval (the
+recursive call drops `alternative`); a standalone repro is in
+`docs/results/ppi/repros/manual__ppi_alternative.py`. Not reported upstream.
+
 ## 5. Pre-registered hypotheses
 
 | # | Hypothesis | Verdict |
@@ -712,6 +764,10 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
 | 8 (round 2) | MAPIE APS `False` over-covers on `cls_gauss_inf` | **Refuted** (F1). It under-covers by 0.05-0.11 in all 23 cells where it runs. |
 | 9 (round 2) | Randomized RAPS passes in puncc and TorchCP; MAPIE `randomized` passes against n - ceil(0.1 n); MAPIE `True` is conservative | **Partly refuted.** TorchCP passes and the MAPIE parts are confirmed; puncc's randomized RAPS over-covers (F10). For MAPIE, "passes" means not rejected: its uniforms are reused and one branch of its set rule is not exercised (section 7). |
 | 10 (round 2) | Bracketing confirms the crepes boundary effect at large n and finds no offset in the other LAC rows | **Confirmed** (F3). k + 1 in the boundary cells with alpha in {0.1, 0.2}, including n = 999 (not at alpha = 0.05, see hypothesis 2); offset 0 in every draw of MAPIE, puncc and TorchCP LAC and of the reference. |
+| 11 (ppi) | PPI is below nominal wherever no judge disagreement is likely (`acc^n >= alpha`, pi != 0.5), and never at pi = 0.5 | **Partly confirmed.** All 15 predicted cells are below nominal, but PPI at pi = 0.5 also falls below in 6 of 32 cells (n <= 50, acc <= 0.9; lowest 0.8675 at 90%). |
+| 12 (ppi) | PPI++ inherits Wald's zero-count failure: below nominal at pi = 0.02 for n <= 100, and lower than PPI in most cells with pi <= 0.1 | **Confirmed.** 24 of 24 cells below nominal; the bound `1 - (1 - pi)^n` holds in all 128 cells; lower than PPI in 62 of 64. |
+| 13 (ppi) | Wald is below nominal at pi = 0.02 for every n and at pi = 0.1 for n <= 50; Clopper-Pearson never below 1 - alpha | **Partly confirmed.** Wald at pi = 0.02 is below nominal in 28 of 32 cells; the other 4 are one (n, alpha) cell, n = 200 and alpha = 0.1, repeated over acc (Wald ignores the judge); it covers 0.8904, short by 0.0096, inside the one-point margin. pi = 0.1, n <= 50: 16 of 16. Clopper-Pearson is never below (lowest margin +0.005). |
+| 14 (ppi) | At pi in {0.3, 0.5} and n >= 100, PPI and PPI++ are within a point of nominal | **Partly refuted.** PPI fails in 1 of 32 cells (0.879 at n = 100, acc = 0.95, pi = 0.3), PPI++ in 3 of 32 (0.886-0.890 at n = 100, pi = 0.3). |
 
 ## 6. Checks against adapter mistakes
 
@@ -862,6 +918,11 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
 - **Library versions move.** These are statements about MAPIE 1.6.0, crepes 0.9.1,
   puncc 0.9.3 and TorchCP 1.2.1. Re-run `conformcheck repro --verify` against newer
   versions before citing a finding.
+- **Prediction-powered inference study.** One judge model (sensitivity = specificity,
+  independent of anything else), the judge mean held at its expectation with N = 10,000
+  (section 4 gives the size of that effect on six cells), two-sided mean intervals only,
+  `ppi_py` 0.2.3 only. The exact numbers are conditional on these choices; a judge whose
+  errors depend on the item, or other estimands (quantiles, regression), are not covered.
 
 ## 8. Reproducing
 
@@ -878,6 +939,9 @@ uv run python scripts/raps_neff.py runs/default --out runs/default/raps_neff.md
 
 The MAPIE 1.5.0 vs 1.6.0 comparison (about 45 minutes on 4 workers; resumable):
 `bash scripts/mapie_versions.sh`, which writes `runs/mapie-versions-default/`.
+
+The ppi_py study (about 40 minutes on 4 workers; resumable):
+`uv run python scripts/ppi_study.py --out runs/ppi --to docs/results/ppi`.
 
 The batch-size invariance study (about 4 minutes on 4 workers):
 `uv run python scripts/run_study.py --study batch --out runs/batch --workers 4`, then

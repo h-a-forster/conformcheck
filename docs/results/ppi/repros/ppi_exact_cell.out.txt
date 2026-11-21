@@ -1,0 +1,5 @@
+ppi-python 0.2.3 numpy 2.5.5
+ppi    exact coverage 0.862751  (nominal 0.9)
+ppi++  exact coverage 0.290151  (nominal 0.9)
+wald   exact coverage 0.331792  (nominal 0.9)
+REPRODUCES: below nominal by more than one point

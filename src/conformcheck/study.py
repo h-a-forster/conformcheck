@@ -123,6 +123,8 @@ def load_study(name_or_path: str | Path, reps: int | None = None) -> Study:
             raise FileNotFoundError(f"no built-in study {name_or_path!r} and no such file")
         text, source = res.read_text(encoding="utf-8"), f"builtin:{name_or_path}"
     raw = tomllib.loads(text)
+    if raw.get("kind") == "ppi":
+        raise ValueError(f"{source} is a ppi study; run it with python -m conformcheck.ppi")
     try:
         return _parse_study(raw, source, reps)
     except (KeyError, TypeError) as exc:  # wrong types slipping past the checks below
