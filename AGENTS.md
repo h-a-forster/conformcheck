@@ -30,7 +30,7 @@ standalone repros, plus a pytest plugin.
 - Scratch work goes in `tmp/` (gitignored). Large or raw outputs stay in `runs/` or
   `data/` (gitignored); only small derived results go in `docs/results/`.
 - Do not change `[tool.uv] override-dependencies` without reading DESIGN section 5.
-- The repository is public on GitHub; push, tag or release only with the owner's go-ahead.
+- The repository is public on GitHub; push, tag or release only with the maintainer's go-ahead.
 - Statistical honesty: report sizes, seeds and versions; give intervals; use Holm/BY
   across cells. A library "bug" needs a standalone repro and an adapter cross-check
   (DESIGN 8.2) before it is called one.
@@ -60,7 +60,8 @@ src/conformcheck/
   tswrappers.py     statsforecast, sktime, darts as split regressors (fixed 0 forecaster)  [done]
   living.py         living-audit battery per target, verdicts, comparison with baseline   [done]
   studies/          smoke.toml, default.toml, full.toml, batch.toml (batch-size check),
-                    quick.toml (living-audit battery)
+                    quick.toml (living-audit battery), full-aps-raps.toml (APS/RAPS slice
+                    of full; a grid's optional `methods` key keeps only those rows)
 scripts/living.py     living audit: fresh venv per library, newest release, compare, issue
 scripts/run_study.py  resume-on-failure wrapper around `conformcheck run`
 scripts/raps_neff.py   MAPIE RAPS against candidate calibration sizes (hypothesis 6)
@@ -71,7 +72,6 @@ REPORT.md           default study findings; docs/results/default/ holds its outp
 docs/DESIGN.md      the spec
 docs/upstream.md    issues filed upstream and their outcomes
 docs/upstream/      issue texts for the libraries
-backlog.md          open work
 ```
 
 ## How to test
@@ -120,7 +120,7 @@ NAME==VERSION` to rebuild it for the audited versions). Changing the battery (qu
 Status (2026-11-13): **0.2.0 is tagged (`v0.2.0`).** The repository is public. F1, F9,
 F10 and F12 are filed upstream (`docs/upstream.md`). The 2026-11-09 study of statsforecast,
 sktime and darts is in `docs/results/newlib-2026-11-09/` and REPORT section 4. Open work is
-in `backlog.md` (gitignored).
+tracked outside the repository.
 
 - 2026-10-30: MAPIE 1.6.0 and puncc 0.9.3 are still the latest releases. The F1, F9 and
   F10 repros give the same output; F1 and F9 also reproduce on MAPIE 1.5.0. New finding

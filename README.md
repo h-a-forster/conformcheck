@@ -48,7 +48,7 @@ section 4).
 | MAPIE split, LAC, APS, symmetric CQR | refuse feasible `alpha` in `[1/(n+1), 1/n)` | every n |
 | MAPIE asymmetric CQR | refuses when `n < 2/alpha` although `k' <= n` | n = 9, alpha = 0.2; n = 19, alpha = 0.1 |
 | MAPIE CV+ (K = 5, 10) | lower endpoint uses k + 1 at n = 999, alpha = 0.05 | found by rank recovery |
-| MAPIE RAPS | ignores `size_raps` (holds out ceil(0.1 n), not 0.2 n); raises at n <= 20 with 4 classes | not rejected at the effective size where it runs |
+| MAPIE RAPS | ignores `size_raps` (holds out ceil(0.1 n), not 0.2 n); raises at n <= 20 with 4 classes | not rejected at the effective size where it runs (one full-size cell is a candidate over-coverage, REPORT section 7) |
 | puncc randomized RAPS | set rule does not match puncc's own score | 0.990 and 0.917 vs 0.900 on two synthetic models |
 | puncc CV+ / jackknife+ | crash on folds of size one and at `alpha = 1/(n+1)`; k + 1 at n = 99, 999 | jackknife+ errors in every cell |
 | TorchCP split regression and CQR | crash where `k > n` instead of a trivial interval | every `k > n` cell |

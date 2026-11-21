@@ -1,0 +1,60 @@
+{
+  "fingerprint": "5063981f5b1bd3eb",
+  "first_started": "2026-11-21T03:15:14",
+  "missing_libraries": [],
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel",
+  "source": "builtin:full-aps-raps",
+  "started": "2026-11-21T03:15:50",
+  "study": {
+    "alphas": [
+      "0.05",
+      "0.1",
+      "0.2"
+    ],
+    "edge_alphas": true,
+    "fdr": 0.05,
+    "fwer": 0.05,
+    "grids": [
+      {
+        "alphas": null,
+        "dgps": [
+          "cls_gauss_inf"
+        ],
+        "edge_alphas": null,
+        "methods": [
+          "aps",
+          "raps"
+        ],
+        "n": [
+          99,
+          999
+        ],
+        "n_folds": [],
+        "name": "split"
+      }
+    ],
+    "mutants": [],
+    "name": "full-aps-raps",
+    "reference": true,
+    "reps": 2000,
+    "seed": 20261023,
+    "test_points": 1000,
+    "workers": 4
+  },
+  "units_skipped_missing": 0,
+  "units_total": 34,
+  "versions": {
+    "conformcheck": "0.2.0",
+    "crepes": "0.9.1",
+    "mapie": "1.6.0",
+    "numpy": "2.5.4",
+    "puncc": "0.9.3",
+    "python": "3.12.10",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "torch": "2.14.1+cpu",
+    "torchcp": "1.2.1"
+  },
+  "workers": 4
+}

@@ -11,9 +11,10 @@ import sys
 from fractions import Fraction
 from pathlib import Path
 
+import numpy as np
 import pytest
 
-from conformcheck import cli, study
+from conformcheck import cli, data, repro, study
 from conformcheck.report import write_report
 from conformcheck.repro import write_repros
 from conformcheck.runner import FingerprintMismatch, load_done, run_study
@@ -51,12 +52,46 @@ def tiny(tmp_path: Path) -> study.Study:
     return study.load_study(p)
 
 
+def test_grid_methods_restrict_rows_and_keep_other_fingerprints(tmp_path: Path) -> None:
+    # `methods` keeps only those rows of the grid; a grid without it is unchanged, including
+    # its fingerprint and run.json round trip. full-aps-raps is the full study's APS/RAPS slice.
+    base = study.load_study(_write(tmp_path, TOML))
+    text = TOML.replace(
+        'dgps = ["reg_gauss", "cls_gauss"]', 'dgps = ["cls_gauss"]\nmethods = ["aps"]'
+    )
+    restricted = study.load_study(_write(tmp_path, text, "r.toml"))
+    assert "methods" not in base.config()["grids"][0]
+    assert study.fingerprint(base) == study.fingerprint(study.Study.from_config(base.config()))
+    assert restricted.config()["grids"][0]["methods"] == ("aps",)
+    assert study.Study.from_config(restricted.config()).grids == restricted.grids
+    units = [u for u in study.enumerate_units(restricted) if u.dgp == "cls_gauss"]
+    assert units and {u.method for u in units} == {"aps"}
+    assert {u.method for u in study.enumerate_units(base) if u.dgp == "cls_gauss"} >= {"lac", "aps"}
+    part, full = study.load_study("full-aps-raps"), study.load_study("full")
+    assert (part.reps, part.test_points, part.seed, part.alphas) == (
+        full.reps,
+        full.test_points,
+        full.seed,
+        full.alphas,
+    )
+    assert {u.method for u in study.enumerate_units(part)} == {"aps", "raps"}
+
+
+def test_repro_scripts_rebuild_the_bayes_classifier() -> None:
+    # Cells on cls_gauss_inf got no repro ("no template"); the scripts now carry its model.
+    ns: dict = {}
+    exec(repro.PRELUDE.format(lib="numpy") + repro.MODELS, ns)  # noqa: S102
+    x = np.random.default_rng(0).normal(size=(50, 2)) * 2
+    want = data.get_dgp("cls_gauss_inf").model().predict_proba(x)
+    assert np.allclose(ns["BayesClassifier"]().predict_proba(x), want)
+
+
 def _strip(rec: dict) -> dict:
     return {k: v for k, v in rec.items() if k != "elapsed_s"}
 
 
 def test_load_builtin_studies() -> None:
-    for name in ("smoke", "default", "full", "batch"):
+    for name in ("smoke", "default", "full", "batch", "quick", "full-aps-raps"):
         s = study.load_study(name)
         assert s.workers <= 4 and s.reps >= 20
     assert study.load_study("default").reps == 200
@@ -226,6 +261,16 @@ def _write(tmp_path: Path, text: str, name: str = "s.toml") -> Path:
         ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = [0]", "positive integer"),
         ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = [3, 3]", "duplicates"),
         ("edge_alphas = true", "edge_alphas = true\nbatch_sizes = 3", "must be a list"),
+        (
+            'dgps = ["reg_gauss", "cls_gauss"]',
+            'dgps = ["cls_gauss"]\nmethods = ["lacc"]',
+            "no method",
+        ),
+        (
+            'dgps = ["reg_gauss", "cls_gauss"]',
+            'dgps = ["reg_gauss"]\nmethods = ["aps"]',
+            "none of",
+        ),
     ],
 )
 def test_load_study_validates(tmp_path: Path, old: str, new: str, match: str) -> None:

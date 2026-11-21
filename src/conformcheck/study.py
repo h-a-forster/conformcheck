@@ -46,6 +46,7 @@ class Grid:
     alphas: tuple[str, ...] | None = None
     edge_alphas: bool | None = None
     n_folds: tuple[int, ...] = ()
+    methods: tuple[str, ...] = ()  # subset of GRID_METHODS[name]; empty means all
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,9 @@ class Study:
         d.pop("source")
         if not d["batch_sizes"]:  # studies without the check keep their fingerprints
             d.pop("batch_sizes")
+        for g in d["grids"]:  # grids without a method subset keep their fingerprints
+            if not g["methods"]:
+                g.pop("methods")
         return d
 
     @classmethod
@@ -84,6 +88,7 @@ class Study:
                 alphas=None if g.get("alphas") is None else tuple(str(a) for a in g["alphas"]),
                 edge_alphas=g.get("edge_alphas"),
                 n_folds=tuple(int(k) for k in g.get("n_folds", ())),
+                methods=tuple(str(m) for m in g.get("methods", ())),
             )
             for g in d.pop("grids")
         )
@@ -160,6 +165,16 @@ def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
         folds = tuple(_positive_int(k, f"grid {gname!r} n_folds") for k in g.get("n_folds", ()))
         if gname == "cv_plus" and not folds:
             raise ValueError(f"{source}: grid 'cv_plus' needs a non-empty 'n_folds'")
+        methods = tuple(str(m) for m in g.get("methods", ()))
+        known = {m for task in GRID_METHODS[gname].values() for m in task}
+        if unknown_methods := [m for m in methods if m not in known]:
+            raise ValueError(
+                f"{source}: grid {gname!r} has no method(s) {unknown_methods}; "
+                f"known: {sorted(known)}"
+            )
+        for d in dgps if methods else ():
+            if not set(GRID_METHODS[gname][get_dgp(d).task]) & set(methods):
+                raise ValueError(f"{source}: dgp {d!r} has none of the methods {list(methods)}")
         g_alphas = None
         if "alphas" in g:
             g_alphas = tuple(str(a) for a in g["alphas"])
@@ -173,6 +188,7 @@ def _parse_study(raw: dict[str, Any], source: str, reps: int | None) -> Study:
                 alphas=g_alphas,
                 edge_alphas=g.get("edge_alphas"),
                 n_folds=folds,
+                methods=methods,
             )
         )
     controls = raw.get("controls", {})
@@ -298,6 +314,8 @@ def enumerate_units(
         for dgp_name in grid.dgps:
             dgp = get_dgp(dgp_name)
             methods = GRID_METHODS[grid.name].get(dgp.task, ())
+            if grid.methods:
+                methods = tuple(m for m in methods if m in grid.methods)
             for key, ad in adapters.items():
                 if ad.spec.method not in methods or not _include(ad, study):
                     continue

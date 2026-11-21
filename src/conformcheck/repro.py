@@ -134,6 +134,16 @@ class FixedClassifier(ClassifierMixin, BaseEstimator):
         return self.predict_proba(X).argmax(axis=1)
 
 
+class BayesClassifier(FixedClassifier):
+    """Bayes posterior of the four unit-variance Gaussians (MEANS) with equal priors."""
+
+    def predict_proba(self, X):
+        means = np.array([[0.0, 0.0], [2.0, 0.0], [0.0, 2.0], [2.0, 2.0]])
+        z = np.asarray(X, dtype=float) @ means.T - 0.5 * np.sum(means**2, axis=1)
+        e = np.exp(z - z.max(axis=1, keepdims=True))
+        return e / e.sum(axis=1, keepdims=True)
+
+
 class ZeroRegressor(RegressorMixin, BaseEstimator):
     """Ignores its training data and predicts 0: every leave-one-out or out-of-fold
     model is the same, so jackknife+ and CV+ reduce to split conformal on all n points
@@ -481,7 +491,7 @@ def _snippet(cell: Cell) -> str | None:
         return SNIPPETS[row]
     if method in ("cv_plus", "jackknife_plus") and f"{lib}/cv_plus" in SNIPPETS:
         return SNIPPETS[f"{lib}/cv_plus"]
-    if cell.dgp not in ("cls_gauss",):
+    if cell.dgp not in ("cls_gauss", "cls_gauss_inf"):
         return None
     if lib == "mapie":
         ill = None
@@ -528,8 +538,10 @@ def _script(cell: Cell, kind: str, snippet: str) -> str:
     if cell.library == "torchcp":
         head += TORCHCP_STUBS
     body = head + MODELS + snippet
-    is_cls = cell.dgp == "cls_gauss"
-    model = "FixedClassifier()" if is_cls else "FixedRegressor()"
+    is_cls = cell.dgp in ("cls_gauss", "cls_gauss_inf")
+    model = {"cls_gauss": "FixedClassifier()", "cls_gauss_inf": "BayesClassifier()"}.get(
+        cell.dgp, "FixedRegressor()"
+    )
     alpha = cell.alpha
     if kind == "rank":
         if cell.method in ("cv_plus", "jackknife_plus"):
@@ -604,7 +616,7 @@ def _raise_kind(c: Cell) -> str:
 def clusters(cells: list[Cell], include_controls: bool = True) -> list[tuple[Cell, str]]:
     """One representative cell per (row, mechanism) among non-PASS cells; raises are
     split further by exception message (``raises``, ``raises-2``, ...)."""
-    synthetic = ("reg_gauss", "cls_gauss", "reg_constant")
+    synthetic = ("reg_gauss", "cls_gauss", "cls_gauss_inf", "reg_constant")
 
     def rank(c: Cell) -> tuple:  # type: ignore[type-arg]
         a = Fraction(c.alpha)

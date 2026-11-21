@@ -58,8 +58,15 @@ def as_fraction(alpha: AlphaLike) -> Fraction:
 
 
 def _check_n(n: int) -> None:
-    if not isinstance(n, int | np.integer) or n < 1:
-        raise ValueError(f"n must be a positive integer, got {n!r}")
+    """``n`` is a calibration size: a non-negative integer.
+
+    ``n = 0`` is a valid split conformal predictor: ``k = ceil(1 - alpha) = 1 > n``, so the
+    only valid set is the trivial one and coverage is identically 1 (every conformal
+    p-value is ``1/(n + 1) = 1``). The reference implementation already returns ``+inf``
+    for it; the laws agree instead of raising.
+    """
+    if isinstance(n, bool) or not isinstance(n, int | np.integer) or n < 0:
+        raise ValueError(f"n must be a non-negative integer, got {n!r}")
 
 
 def split_index(n: int, alpha: AlphaLike) -> int:

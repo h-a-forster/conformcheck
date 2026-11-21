@@ -1,0 +1,35 @@
+# The APS and RAPS slice of the full-size study (REPORT.md, section 7: these two methods
+# have no deterministic rank check, so only Monte Carlo power can see a one-order-statistic
+# error at large n). Same seed, R, m and alphas as full.toml; only the `split` grid,
+# restricted to the classification methods aps and raps. The reference rows run as
+# controls. Cuts against full.toml, made 2026-11-21 to keep the run to a few hours on 4
+# workers (both timings measured on 2026-11-21 on a machine running other jobs:
+# `conformcheck plan` estimated 97 min for the uncut slice, and a unit at n = 999 took 2
+# to 20 minutes):
+# - n = 5 to 50 are dropped (power at small n is not the question; the default study
+#   covers them), n = 1000 in favour of its boundary twin n = 999, n = 100 in favour of
+#   n = 99;
+# - the anti-informative DGP cls_gauss is dropped (cls_gauss_inf, the Bayes classifier,
+#   is kept);
+# - the mutant controls are dropped: all four are split-regression and LAC mutants, so on
+#   an aps/raps grid they would add no units.
+# The rest of `full` remains open.
+
+name = "full-aps-raps"
+seed = 20261023
+reps = 2000           # R: independent calibration draws per cell
+test_points = 1000    # m: test points per repetition
+workers = 4
+fwer = 0.05
+fdr = 0.05
+alphas = ["0.05", "0.1", "0.2"]
+edge_alphas = true
+
+[grids.split]
+n = [99, 999]
+dgps = ["cls_gauss_inf"]
+methods = ["aps", "raps"]
+
+[controls]
+reference = true
+mutants = []

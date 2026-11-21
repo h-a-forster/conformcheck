@@ -8,7 +8,7 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from conformcheck import laws
+from conformcheck import laws, reference
 
 
 @pytest.mark.parametrize(
@@ -79,6 +79,29 @@ def test_trivial_count_law() -> None:
     law = laws.split_count_law(5, 0.1, 7)
     assert law.coverage == 1.0
     assert law.pmf is not None and law.pmf[7] == 1.0
+
+
+def test_empty_calibration_set_is_the_trivial_predictor() -> None:
+    # n = 0: k = ceil(1 - alpha) = 1 > n, so the set must be trivial and coverage is 1,
+    # as the reference threshold (+inf) already says. Negative or non-integer n is an error.
+    for alpha in (0.05, 0.1, "1/2", "0.999"):
+        assert laws.split_index(0, alpha) == 1
+        assert laws.floor_index(0, alpha) == 0
+        assert laws.requires_trivial_set(0, alpha)
+        assert laws.marginal_coverage(0, alpha) == 1
+        assert not laws.is_integer_boundary(0, alpha)
+        assert reference.conformal_threshold(np.array([]), laws.as_fraction(alpha)) == math.inf
+    law = laws.split_count_law(0, 0.1, 4)
+    assert law.coverage == 1.0 and law.pmf is not None and law.pmf[4] == 1.0
+    assert laws.discrete_split_coverage(0, 0.1, np.array([0.5, 0.5])) == 1.0
+    assert laws.discrete_count_law(0, 0.1, 3, np.array([0.5, 0.5])).pmf[3] == 1.0
+    with pytest.raises(ValueError, match="identically 1"):
+        laws.conditional_beta_params(0, 0.1)
+    for bad in (-1, 2.0, True, np.float64(3)):
+        with pytest.raises(ValueError, match="non-negative integer"):
+            laws.split_index(bad, 0.1)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="2 <= K <= n"):
+        laws.cv_plus_bound(0, 2, 0.1)
 
 
 def test_jackknife_and_cv_plus_bounds() -> None:

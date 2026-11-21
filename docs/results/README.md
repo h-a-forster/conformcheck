@@ -50,6 +50,16 @@ The default study's MAPIE rows (and the reference rows) under MAPIE 1.5.0 and 1.
 | `1.5.0/`, `1.6.0/` | `run.json` and `summary.md` of each run |
 | `1.5.0/units.jsonl.gz` | The 1.5.0 per-unit records (the 1.6.0 MAPIE records equal those in `default/`) |
 
+## full-aps-raps-partial/
+
+A partial run of the built-in `full-aps-raps` study (APS and RAPS at R = 2000, m = 1000,
+2026-11-21, Python 3.12 on Windows): 21 of 34 units, every n = 999 unit and 4 of the
+n = 99 units (REPORT section 7). Same file layout as `batch/`, plus `cells.csv`. To
+finish it, gunzip the records into `runs/full-aps-raps/units.jsonl`, copy `run.json`
+beside them and rerun `scripts/run_study.py --study full-aps-raps --out runs/full-aps-raps`.
+`summary.md` was generated from the finished units only: its headline and oracle-control
+counts do not describe the full slice.
+
 ## newlib-2026-11-09/
 
 statsforecast, sktime and darts through `conformcheck.testing` with a fixed zero forecaster

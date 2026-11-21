@@ -1,0 +1,420 @@
+{
+  "run": {
+    "fingerprint": "5063981f5b1bd3eb",
+    "versions": {
+      "conformcheck": "0.2.0",
+      "crepes": "0.9.1",
+      "mapie": "1.6.0",
+      "numpy": "2.5.4",
+      "puncc": "0.9.3",
+      "python": "3.12.10",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.18.1",
+      "torch": "2.14.1+cpu",
+      "torchcp": "1.2.1"
+    },
+    "platform": "Windows-11-10.0.26200-SP0",
+    "workers": 4,
+    "units_total": 34,
+    "first_started": "2026-11-21T03:15:14",
+    "ended": null,
+    "source": "builtin:full-aps-raps",
+    "missing_libraries": []
+  },
+  "study": {
+    "alphas": [
+      "0.05",
+      "0.1",
+      "0.2"
+    ],
+    "edge_alphas": true,
+    "fdr": 0.05,
+    "fwer": 0.05,
+    "grids": [
+      {
+        "alphas": null,
+        "dgps": [
+          "cls_gauss_inf"
+        ],
+        "edge_alphas": null,
+        "methods": [
+          "aps",
+          "raps"
+        ],
+        "n": [
+          99,
+          999
+        ],
+        "n_folds": [],
+        "name": "split"
+      }
+    ],
+    "mutants": [],
+    "name": "full-aps-raps",
+    "reference": true,
+    "reps": 2000,
+    "seed": 20261023,
+    "test_points": 1000,
+    "workers": 4
+  },
+  "units_done": 21,
+  "records_dropped": {
+    "other_config": 0,
+    "other_versions": 0
+  },
+  "statistical_cells": 74,
+  "headline": {
+    "rows": 13,
+    "rows_small_n_flagged": 4,
+    "flagged_rows": [
+      "mapie/aps/include_last_label=False",
+      "mapie/aps/include_last_label=True",
+      "mapie/aps/include_last_label=randomized",
+      "mapie/raps/include_last_label=True"
+    ],
+    "by_small_n_status": {
+      "FAIL": 1,
+      "CONSERVATIVE": 2,
+      "OVER_REFUSED": 1,
+      "-": 9
+    }
+  },
+  "controls": {
+    "size": {
+      "reference_cells": 20,
+      "reference_statistical_cells": 16,
+      "reference_holm_rejections": 0,
+      "reference_nonpass_cells": 0,
+      "reference_raw_rejections_at_0.05": 0,
+      "reference_exact_mean_tests": 8,
+      "reference_exact_mean_rejections_at_0.05": 0,
+      "reference_exact_mean_rejection_rate": 0.0
+    },
+    "power": {}
+  },
+  "rows": [
+    {
+      "row": "mapie/aps/include_last_label=False",
+      "library": "mapie",
+      "method": "aps",
+      "variant": "include_last_label=False",
+      "cells": 10,
+      "small_n_status": "FAIL",
+      "large_n_status": "FAIL",
+      "counts": {
+        "FAIL": 6,
+        "OVER_REFUSED": 2,
+        "REFUSED": 2
+      },
+      "documented": "",
+      "small_n_undocumented": "FAIL",
+      "non_pass": [
+        "cls_gauss_inf n=99 a=1/5: FAIL (Holm p=0, coverage 0.7424 vs 0.8000)",
+        "cls_gauss_inf n=99 a=1/10: FAIL (Holm p=0, coverage 0.7958 vs 0.9000)",
+        "cls_gauss_inf n=99 a=1/20: FAIL (Holm p=0, coverage 0.8517 vs 0.9500)",
+        "cls_gauss_inf n=99 a=1/100: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=99 a=9/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=1/5: FAIL (Holm p=0, coverage 0.7400 vs 0.8000)",
+        "cls_gauss_inf n=999 a=1/10: FAIL (Holm p=0, coverage 0.7920 vs 0.9000)",
+        "cls_gauss_inf n=999 a=1/20: FAIL (Holm p=0, coverage 0.8466 vs 0.9500)",
+        "cls_gauss_inf n=999 a=1/1000: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "mapie/aps/include_last_label=True",
+      "library": "mapie",
+      "method": "aps",
+      "variant": "include_last_label=True",
+      "cells": 10,
+      "small_n_status": "CONSERVATIVE",
+      "large_n_status": "CONSERVATIVE",
+      "counts": {
+        "CONSERVATIVE": 6,
+        "OVER_REFUSED": 2,
+        "REFUSED": 2
+      },
+      "documented": "MAPIE documents include_last_label=True as conservative",
+      "small_n_undocumented": "OVER_REFUSED",
+      "non_pass": [
+        "cls_gauss_inf n=99 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9132 vs 0.8000)",
+        "cls_gauss_inf n=99 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9585 vs 0.9000)",
+        "cls_gauss_inf n=99 a=1/20: CONSERVATIVE (Holm p=0, coverage 0.9812 vs 0.9500)",
+        "cls_gauss_inf n=99 a=1/100: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=99 a=9/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9133 vs 0.8000)",
+        "cls_gauss_inf n=999 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9588 vs 0.9000)",
+        "cls_gauss_inf n=999 a=1/20: CONSERVATIVE (Holm p=0, coverage 0.9813 vs 0.9500)",
+        "cls_gauss_inf n=999 a=1/1000: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "mapie/aps/include_last_label=randomized",
+      "library": "mapie",
+      "method": "aps",
+      "variant": "include_last_label=randomized",
+      "cells": 10,
+      "small_n_status": "OVER_REFUSED",
+      "large_n_status": "OVER_REFUSED",
+      "counts": {
+        "PASS": 6,
+        "OVER_REFUSED": 2,
+        "REFUSED": 2
+      },
+      "documented": "",
+      "small_n_undocumented": "OVER_REFUSED",
+      "non_pass": [
+        "cls_gauss_inf n=99 a=1/100: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=99 a=9/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=1/1000: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "mapie/raps/include_last_label=True",
+      "library": "mapie",
+      "method": "raps",
+      "variant": "include_last_label=True",
+      "cells": 10,
+      "small_n_status": "CONSERVATIVE",
+      "large_n_status": "CONSERVATIVE",
+      "counts": {
+        "CONSERVATIVE": 5,
+        "OVER_REFUSED": 1,
+        "REFUSED": 4
+      },
+      "documented": "MAPIE documents include_last_label=True as conservative",
+      "small_n_undocumented": "OVER_REFUSED",
+      "non_pass": [
+        "cls_gauss_inf n=99 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9183 vs 0.8000)",
+        "cls_gauss_inf n=99 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9607 vs 0.9000)",
+        "cls_gauss_inf n=99 a=1/20: OVER_REFUSED (refused a feasible level (k <= n))",
+        "cls_gauss_inf n=99 a=1/100: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=99 a=9/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.9170 vs 0.8000)",
+        "cls_gauss_inf n=999 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9623 vs 0.9000)",
+        "cls_gauss_inf n=999 a=1/20: CONSERVATIVE (Holm p=0, coverage 0.9854 vs 0.9500)",
+        "cls_gauss_inf n=999 a=1/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "mapie/raps/include_last_label=randomized",
+      "library": "mapie",
+      "method": "raps",
+      "variant": "include_last_label=randomized",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "CONSERVATIVE",
+      "counts": {
+        "PASS": 2,
+        "CONSERVATIVE": 1,
+        "REFUSED": 2
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": [
+        "cls_gauss_inf n=999 a=1/20: CONSERVATIVE (Holm p=2.4e-36, coverage 0.9514 vs 0.9500)",
+        "cls_gauss_inf n=999 a=1/1000: REFUSED (refused (k > n))",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "puncc/aps/rand=False",
+      "library": "puncc",
+      "method": "aps",
+      "variant": "rand=False",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "REFUSED",
+      "counts": {
+        "PASS": 4,
+        "REFUSED": 1
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": [
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "puncc/aps/rand=True",
+      "library": "puncc",
+      "method": "aps",
+      "variant": "rand=True",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "REFUSED",
+      "counts": {
+        "PASS": 4,
+        "REFUSED": 1
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": [
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "puncc/raps/rand=False",
+      "library": "puncc",
+      "method": "raps",
+      "variant": "rand=False",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "REFUSED",
+      "counts": {
+        "PASS": 4,
+        "REFUSED": 1
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": [
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "puncc/raps/rand=True",
+      "library": "puncc",
+      "method": "raps",
+      "variant": "rand=True",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "CONSERVATIVE",
+      "counts": {
+        "CONSERVATIVE": 4,
+        "REFUSED": 1
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": [
+        "cls_gauss_inf n=999 a=1/5: CONSERVATIVE (Holm p=0, coverage 0.8274 vs 0.8000)",
+        "cls_gauss_inf n=999 a=1/10: CONSERVATIVE (Holm p=0, coverage 0.9202 vs 0.9000)",
+        "cls_gauss_inf n=999 a=1/20: CONSERVATIVE (Holm p=0, coverage 0.9641 vs 0.9500)",
+        "cls_gauss_inf n=999 a=1/1000: CONSERVATIVE (Holm p=2.1e-205, coverage 0.9998 vs 0.9990)",
+        "cls_gauss_inf n=999 a=9/10000: REFUSED (refused (k > n))"
+      ]
+    },
+    {
+      "row": "torchcp/aps/randomized=False",
+      "library": "torchcp",
+      "method": "aps",
+      "variant": "randomized=False",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "torchcp/aps/randomized=True",
+      "library": "torchcp",
+      "method": "aps",
+      "variant": "randomized=True",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "torchcp/raps/randomized=False",
+      "library": "torchcp",
+      "method": "raps",
+      "variant": "randomized=False",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "torchcp/raps/randomized=True",
+      "library": "torchcp",
+      "method": "raps",
+      "variant": "randomized=True",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "reference/aps/deterministic",
+      "library": "reference",
+      "method": "aps",
+      "variant": "deterministic",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "reference/aps/randomized",
+      "library": "reference",
+      "method": "aps",
+      "variant": "randomized",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "reference/raps/deterministic",
+      "library": "reference",
+      "method": "raps",
+      "variant": "deterministic",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    },
+    {
+      "row": "reference/raps/randomized",
+      "library": "reference",
+      "method": "raps",
+      "variant": "randomized",
+      "cells": 5,
+      "small_n_status": "-",
+      "large_n_status": "PASS",
+      "counts": {
+        "PASS": 5
+      },
+      "documented": "",
+      "small_n_undocumented": "-",
+      "non_pass": []
+    }
+  ]
+}

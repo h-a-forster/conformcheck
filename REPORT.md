@@ -707,7 +707,7 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
 | 3 | MAPIE APS `True` conservative, `False` under-covers, `"randomized"` passes | **Partly refuted: model-dependent** (F1). `True` is conservative and `"randomized"` passes in every cell where they run (both are also affected by F4 and F7). "Passes" means not rejected: MAPIE reuses its calibration uniforms at test time, which this design cannot detect (section 7). `False` under-covers on both synthetic models but over-covers on digits. It does not follow the law in either direction. |
 | 4 | k > n behaviour differs, and all libraries are valid | **Partly refuted.** puncc refuses (valid). crepes returns trivial sets (valid, with a warning). MAPIE refuses even with `allow_infinite_bounds=True` on the split regressor (F4). TorchCP regression crashes (F8), while its classifiers return full sets. |
 | 5 | MAPIE asymmetric CQR has coverage (2k' - (n+1))/(n+1) | **Confirmed where it runs.** For example 0.9177 [0.9124, 0.9230] against 0.92 at n = 49, alpha = 0.1, with rank recovery exact per side. It over-refuses some feasible levels (F4). |
-| 6 | MAPIE RAPS follows the law with n_eff = n - ceil(0.2 n) | **Refuted in its number, confirmed in its form** (F9). MAPIE holds out ceil(0.1 n), not ceil(0.2 n), because `size_raps` is ignored. This was found by reading the source while implementing the adapter (DESIGN 14.1) and is confirmed by the calibration size MAPIE reports in every repetition. The coverage matches the law at n - ceil(0.1 n) in all 26 cells where MAPIE runs. The statistical test cannot tell the candidate sizes apart: in those cells the laws at nominal n, n - ceil(0.1 n) and n - ceil(0.2 n) have nearly the same mean, and 0 of 26 cells reject any of them (`raps_neff.md`). The prediction that the nominal-n law would show LAW_MISMATCH is not supported at R = 200. |
+| 6 | MAPIE RAPS follows the law with n_eff = n - ceil(0.2 n) | **Refuted in its number, confirmed in its form** (F9). MAPIE holds out ceil(0.1 n), not ceil(0.2 n), because `size_raps` is ignored. This was found by reading the source while implementing the adapter (DESIGN 14.1) and is confirmed by the calibration size MAPIE reports in every repetition. The coverage matches the law at n - ceil(0.1 n) in all 26 cells where MAPIE runs. The statistical test cannot tell the candidate sizes apart: in those cells the laws at nominal n, n - ceil(0.1 n) and n - ceil(0.2 n) have nearly the same mean, and 0 of 26 cells reject any of them (`raps_neff.md`). The prediction that the nominal-n law would show LAW_MISMATCH is not supported at R = 200. A partial full-size run (R = 2000, m = 1000; section 7) rejects the law at n - ceil(0.1 n) = 899 in one cell (n = 999, alpha = 0.05), driven by the goodness-of-fit test; until that candidate has a repro, "confirmed in its form" holds for the 26 default-study cells only. |
 | 7 | TorchCP float32 creates ties at large n | **No evidence.** TorchCP LAC, APS and RAPS pass at n = 1000, and LAC bracketing (which now sees both directions) gives offset 0 in every draw. |
 | 8 (round 2) | MAPIE APS `False` over-covers on `cls_gauss_inf` | **Refuted** (F1). It under-covers by 0.05-0.11 in all 23 cells where it runs. |
 | 9 (round 2) | Randomized RAPS passes in puncc and TorchCP; MAPIE `randomized` passes against n - ceil(0.1 n); MAPIE `True` is conservative | **Partly refuted.** TorchCP passes and the MAPIE parts are confirmed; puncc's randomized RAPS over-covers (F10). For MAPIE, "passes" means not rejected: its uniforms are reused and one branch of its set rule is not exercised (section 7). |
@@ -764,13 +764,30 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
 
 - **Monte Carlo power falls with n.** With R = 200 and m = 500, a one-order-statistic
   error is statistically invisible above roughly n = 100 (section 3). Rank recovery
-  covers split regression, CQR and CV+/jackknife+ with the constant model; bracketing
-  now covers LAC and class-conditional LAC. APS and RAPS have neither: their
-  deterministic set rules differ between libraries (whether the label that crosses the
-  threshold is included), so an offset would grade a convention, and their randomized
-  rules use uniforms drawn inside the library. A one-step error in an APS or RAPS
-  implementation at n = 1000 would be missed. The `full` study (R = 2000, m = 1000) has
-  more power but was not run.
+  covers split regression, CQR and CV+/jackknife+ with the constant model; bracketing now
+  covers LAC and class-conditional LAC. APS and RAPS have neither: their deterministic
+  set rules differ between libraries (whether the label that crosses the threshold is
+  included), so an offset would grade a convention, and their randomized rules use
+  uniforms drawn inside the library. A one-step error in an APS or RAPS implementation at
+  n = 1000 would be missed. The `full` study (R = 2000, m = 1000) has more power but was
+  not run. Its APS and RAPS slice is the built-in study `full-aps-raps` (n = 99 and 999,
+  `cls_gauss_inf`; cuts listed in its header). A partial run on 2026-11-21 was stopped on
+  a time limit, not on its results, after 21 of 34 units; the n = 999 units ran first, so
+  it holds all 17 at n = 999 and 4 of 17 at n = 99
+  ([docs/results/full-aps-raps-partial](docs/results/full-aps-raps-partial)). Its Holm
+  family covers only those units, and it has no mutant controls, so its power is
+  computed, not measured: the 80%-power shift at n = 999 and alpha = 0.05 to 0.2 is about
+  0.0009 to 0.0017 against a one-step shift of 0.0010, so a one-step error is detectable
+  at alpha = 0.05 but not reliably at 0.1 or 0.2. Every n = 999 row has the status it has in the default
+  study except one cell: MAPIE randomized RAPS at alpha = 0.05 is flagged CONSERVATIVE
+  (mean coverage 0.9514 against 0.95 at its effective size n = 899; the mean test gives
+  p = 8e-11, and the cell's Holm p = 2e-36 comes from the goodness-of-fit test on the
+  distribution of covered counts). The default study measured the same mean 0.9514
+  without the power to flag it. This is a candidate, not a finding: it has no repro or
+  adapter cross-check, and a goodness-of-fit rejection at this size may come from the
+  oracle's law at n = 899 rather than from MAPIE (or from the denominator branch noted
+  below). It bears on hypothesis 6 (section 5). The n = 99 cells are incomplete and no
+  result is claimed from them.
 - **Tests on the mean.** The exact law is tested through the mean of covered counts and
   a goodness-of-fit test on their distribution. Rows whose law is only a bound (CV+ and
   jackknife+ with a real model) or a mean (asymmetric CQR, smoothed p-values) get a
@@ -838,9 +855,10 @@ library 0 of 12 reference cells were rejected and all 12 `k - 1` mutant cells we
   - class-conditional methods on the digits data;
   - Mondrian/conditional regression;
   - RAPS with lambda and k_reg other than 0.1 and 1 (puncc, TorchCP).
-- **CI had not run before this release.** The workflow runs on pushes to `main`, pull
-  requests and manual dispatch; the push trigger was added for this release, and before
-  it no pull request or manual run had happened. All tests were run locally only.
+- **CI before 0.2.0.** Before the 0.2.0 release no CI run had happened (no pull
+  request or manual run), so the results up to 0.2.0 were tested locally only. The
+  workflow has run on every push to `main` since (Linux Python 3.11 and 3.13, Windows
+  Python 3.13).
 - **Library versions move.** These are statements about MAPIE 1.6.0, crepes 0.9.1,
   puncc 0.9.3 and TorchCP 1.2.1. Re-run `conformcheck repro --verify` against newer
   versions before citing a finding.
